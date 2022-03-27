@@ -36,6 +36,7 @@ function Slide(; hide_decorations::Bool=true,
   rowsize!(figure.layout, 1, Auto(ratio_header))
   ratio_footer = 1/10
   rowsize!(figure.layout, 3, Auto(ratio_footer))
+  ratio_controls = 1/10
 
   aspects = Dict(:header => (aspect[1], 1+aspect[2]*ratio_header),
                  :content => aspect,
@@ -110,9 +111,62 @@ Base.@kwdef mutable struct Presentation
 end
 
 
-# function Base.display(presentation::Presentation)
-#   #display(s.figure)
-# end
+
+function periodic_index(i,N) 
+  mod = i % N
+  return mod == 0 ? N : mod
+end
+
+
+function Base.display(presentation::Presentation)
+  slides = presentation.slides
+  @assert length(slides) > 0
+  N_slides = length(slides)
+
+
+  ### Use only one figure and display current slide within slide_pane
+  ### Right now this is not possible, because Makie cannot yet move plot objects in between figures
+  # figure = Figure()
+  # figure[1,1] = slide_pane = GridLayout()
+  # figure[2,1] = control_pane = GridLayout(tellwidth=false)
+  # control_labels = [ "Previous", "Next" ]
+  # control_buttons = control_pane[1,1:2] = [ Button(figure, label = l) for l in control_labels ]
+  #
+  # index = 1
+  # on(events(figure).keyboardbutton) do event
+  #   # register control button actions
+  #   end
+  # end
+  # show first slide
+  # slide_pane = slides[index].figure[1,1]
+  # display(figure)
+
+  # Right now we must register events for every slide separately
+  for (index, slide) in enumerate(slides)
+    on(events(slide.figure).keyboardbutton) do event
+      if event.action == Keyboard.press
+        index_next = if event.key in (Keyboard.left, Keyboard.h)
+          periodic_index(index-1, N_slides)
+        elseif event.key in (Keyboard.down, Keyboard.j)
+          periodic_index(index-1, N_slides)
+        elseif event.key in (Keyboard.right, Keyboard.l)
+          periodic_index(index+1, N_slides)
+        elseif event.key in (Keyboard.up, Keyboard.k)
+          periodic_index(index+1, N_slides)
+        # TODO add close window
+        else
+          @warn "Unused key pressed: $(event.key)"
+          index
+        end
+        display(slides[index_next].figure)
+      end
+    end
+  end
+  # show first slide
+  display(slides[1])
+
+  return
+end
 
 
 function save(name, presentation::Presentation)

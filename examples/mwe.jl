@@ -31,3 +31,5 @@ slidefooter!(slide2, "Florian Atteneder")
 presentation = Presentation()
 append!(presentation.slides, [ slide1, slide2 ])
 @time MakieSlides.save(joinpath(thisdir, "presentation.pdf"), presentation)
+
+presentation
