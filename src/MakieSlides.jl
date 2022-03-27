@@ -126,6 +126,7 @@ function Base.display(presentation::Presentation)
 
   ### Use only one figure and display current slide within slide_pane
   ### Right now this is not possible, because Makie cannot yet move plot objects in between figures
+  ### See https://discourse.julialang.org/t/makie-is-there-an-easy-way-to-combine-several-figures-into-a-new-figure-without-re-plotting/64874
   # figure = Figure()
   # figure[1,1] = slide_pane = GridLayout()
   # figure[2,1] = control_pane = GridLayout(tellwidth=false)
