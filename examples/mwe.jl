@@ -7,23 +7,21 @@ hide_decorations = true
 slide1 = Slide(hide_decorations=hide_decorations)
 slideheader!(slide1, "My first slide")
 slidetext!(slide1, """
-hello world! Here follows a very long text which I don't know about
-whether it will line break or not... probably not
-
-- blabla
-- mimimi
-- uga-aga-uga-aga
+hello world! Here follows a very long text which I don't know about whether it will line break or not... probably not
 """)
-slidefooter!(slide1, "Florian Atteneder")
+slidefooter!(slide1, "Florian")
 @time MakieSlides.save(joinpath(thisdir, "slide1.pdf"), slide1)
 
 
 slide2 = Slide(hide_decorations=hide_decorations)
-slideheader!(slide2, "My first slide")
+slideheader!(slide2, "Desired features")
 slidetext!(slide2, """
-# Is this really page 2?
+- formatted text
+- (inlined) math
+- formatted tables
+- code blocks
 """)
-slidefooter!(slide2, "Florian Atteneder")
+slidefooter!(slide2, "Florian")
 
 @time MakieSlides.save(joinpath(thisdir, "slide2.pdf"), slide2)
 
