@@ -1,0 +1,10 @@
+name = "MakieSlides"
+uuid = "64e33b44-acf5-42ce-8470-0dd0e334ba8b"
+authors = ["Florian Atteneder <florian.atteneder@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+Cairo = "159f3aea-2a34-519c-b102-8c37f9878175"
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+CommonMark = "a80b9123-70ca-4bc0-993e-6e3bcb318db6"
+GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"

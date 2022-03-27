@@ -1,0 +1,5 @@
+- How to render LaTeX math inside strings?
+- How keep figure ratio constant?
+- How to keep font size in sync with figure size?
+- How to save multiple slides into one pdf with Cairo.jl?
+- How to make a clickable/scrollable figure with GLMakie?
