@@ -92,7 +92,8 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
 
     text!(plot, glyphcollection;
           position = plot.position,
-          offset = plot.offset
+          offset = plot.offset,
+          space = plot.space
           # what other attributes should we pass on here?
          )
 

@@ -32,17 +32,36 @@ function Slide(; hide_decorations::Bool=true,
 
   @assert all(aspect .> 0)
 
-  figure = Figure()
+  # TODO 
+  # 1. Right now the content has a fixed size. If we resize the window below that size
+  # then the content gets cropped. Can we make it such that instead of cropping we resize
+  # it and maintain the aspect ratio?
+  # 2. Figure out how to maintain the figure size between different slides. Can this be done with
+  # observables?
+  # 3. We deactivated zooming for indiviual axis. Can be enable a global zooming that adjusts
+  # the figure resolution? Might also be useful for 1.
 
-  panes = Dict(:header  => Axis(figure[1,1]),
-               :content => Axis(figure[2,1]),
-               :footer  => Axis(figure[3,1]))
+  ratio = aspect[1] / aspect[2]
+  width = 1400
+  height = width / ratio
+  resolution = (width*1.05,height*1.05) # add some border outlines
+  figure = Figure(resolution=resolution)
+
+  axis_options = (; xzoomlock=true, xpanlock=true, xrectzoom=false,
+                    yzoomlock=true, ypanlock=true, yrectzoom=false)
+  panes = Dict(:header  => Axis(figure[1,1]; axis_options...),
+               :content => Axis(figure[2,1]; axis_options...),
+               :footer  => Axis(figure[3,1]; axis_options...))
+
+  linkxaxes!(panes[:content], panes[:header])
+  linkxaxes!(panes[:content], panes[:footer])
+  colsize!(figure.layout, 1, Fixed(width))
 
   ratio_header = 1/10
-  rowsize!(figure.layout, 1, Auto(ratio_header))
   ratio_footer = 1/10
-  rowsize!(figure.layout, 3, Auto(ratio_footer))
-  ratio_controls = 1/10
+  rowsize!(figure.layout, 1, Fixed(height * ratio_header))
+  rowsize!(figure.layout, 2, Fixed(height * (1 - ratio_header - ratio_footer)))
+  rowsize!(figure.layout, 3, Fixed(height * ratio_header))
 
   aspects = Dict(:header => (aspect[1], 1+aspect[2]*ratio_header),
                  :content => aspect,
@@ -57,8 +76,8 @@ function Slide(; hide_decorations::Bool=true,
     end
   end
 
-  rowgap!(figure.layout, 5)
-  colgap!(figure.layout, 5)
+  rowgap!(figure.layout, 0)
+  colgap!(figure.layout, 0)
 
   return Slide(figure, panes)
 end
@@ -70,7 +89,8 @@ function slidetext!(slide, text)
   xwidth, ywidth = rect.widths
   xorigin, yorigin = rect.origin
   origin_text = Point2f(xorigin,yorigin+ywidth)
-  t = formattedtext!(pane, text, position=origin_text, align=(:left,:top))
+  t = formattedtext!(pane, text, position=origin_text, align=(:left,:top),
+                     space=:data, textsize=0.5)
 end
 
 
@@ -80,7 +100,8 @@ function slideheader!(slide, text)
   xwidth, ywidth = rect.widths
   xorigin, yorigin = rect.origin
   origin_text = Point2f(xorigin,yorigin+ywidth/2)
-  t = formattedtext!(pane, text, position=origin_text, align=(:left,:center))
+  t = formattedtext!(pane, text, position=origin_text, align=(:left,:center),
+                     space=:data, textsize=0.5)
 end
 
 
@@ -90,7 +111,8 @@ function slidefooter!(slide, text)
   xwidth, ywidth = rect.widths
   xorigin, yorigin = rect.origin
   origin_text = Point2f(xorigin,yorigin+ywidth/2)
-  t = formattedtext!(pane, text, position=origin_text, align=(:left,:center))
+  t = formattedtext!(pane, text, position=origin_text, align=(:left,:center),
+                     space=:data, textsize=0.5)
 end
 
 
@@ -176,13 +198,17 @@ function Base.display(presentation::Presentation)
 end
 
 
-function save(name, presentation::Presentation)
+function save(name, presentation::Presentation; aspect=(16,9))
   CairoMakie.activate!()
 
   slides = presentation.slides
   @assert length(slides) > 0
 
-  figure = Figure()
+  ratio = aspect[1] / aspect[2]
+  width = 1400
+  height = width / ratio
+  resolution = (width*1.05,height*1.05) # add some border outlines
+  figure = Figure(resolution=resolution)
   scene = figure.scene
   screen = CairoMakie.CairoScreen(scene, name, :pdf)
 
