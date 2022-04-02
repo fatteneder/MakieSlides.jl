@@ -3,15 +3,21 @@ module MakieSlides
 
 using GLMakie
 using CairoMakie
+using Markdown
+using Makie
 import Cairo
 
 
-export Slide,
-       slidetext!,
-       slideheader!,
-       slidefooter!,
-       Presentation,
-       save
+# dependencies on Makie internals
+import Makie: NativeFont
+import MakieCore: automatic
+
+
+export Slide, slidetext!, slideheader!, slidefooter!, Presentation, save
+export formattedtext, formattedtext!
+
+
+include("formattedtext.jl")
 
 
 struct Slide
