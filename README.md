@@ -9,4 +9,4 @@ $ julia> ] instantiate
 $ julia> include("examples/mwe.jl")
 ```
 
-Output: [](examples/presentation.pdf)
+[presentation.pdf](./examples/presentation.pdf)
