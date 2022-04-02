@@ -21,8 +21,7 @@ But here is some formatted text
 
 **bold** works
 
-`code` works (ignoring language for now; colored background would be cool;\n
-Dejavu Sans Mono not available on my system ...)
+`code` works (ignoring language for now; colored background would be cool)
 """)
 slidefooter!(slide1, "Florian")
 @time MakieSlides.save(joinpath(thisdir, "slide1.pdf"), slide1)

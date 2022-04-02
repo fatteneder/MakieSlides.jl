@@ -113,7 +113,7 @@ to_italic_font(x::NativeFont) = to_italic_font(x.family_name)
 to_italic_font(x::Vector{NativeFont}) = x
 
 
-to_code_font(x::Union{Symbol, String}) = to_font("$(string(x)) mono")
+to_code_font(x::Union{Symbol, String}) = to_font("Times New Roman") # who codes with this font? :)
 to_code_font(x::Vector{String}) = to_code_font.(x)
 to_code_font(x::NativeFont) = to_code_font(x.family_name)
 to_code_font(x::Vector{NativeFont}) = x
