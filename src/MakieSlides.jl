@@ -63,12 +63,12 @@ function Slide(; hide_decorations::Bool=true,
   rowsize!(figure.layout, 2, Fixed(height * (1 - ratio_header - ratio_footer)))
   rowsize!(figure.layout, 3, Fixed(height * ratio_header))
 
-  aspects = Dict(:header => (aspect[1], 1+aspect[2]*ratio_header),
-                 :content => aspect,
-                 :footer => (aspect[1], 1+aspect[2]*ratio_footer))
+  pane_aspects = Dict(:header => (aspect[1], 1+aspect[2] * ratio_header),
+                      :content =>(aspect[1], 1+aspect[2] * (1 - ratio_header - ratio_footer)),
+                      :footer => (aspect[1], 1+aspect[2] * ratio_footer))
 
   for (k, pane) in pairs(panes)
-    asp = aspects[k]
+    asp = pane_aspects[k]
     limits!(pane, 1, asp[1], 1, asp[2])
     if hide_decorations
       hidedecorations!(pane, grid=true)
