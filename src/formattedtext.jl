@@ -27,8 +27,8 @@ end
 
 # convert strings to Markdown.MD
 function Makie.plot!(plot::FormattedText{<:Tuple{<:AbstractString}}) 
-    md = Markdown.parse(plot[:text][])
-    formattedtext!(plot, md)
+    markdown = Markdown.parse(plot[:text][])
+    formattedtext!(plot, markdown; plot.attributes...)
 end
 
 
@@ -46,7 +46,7 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.MD}})
     end
 
     one_paragraph = Markdown.Paragraph(all_elements)
-    formattedtext!(plot, one_paragraph; plot.attributes)
+    formattedtext!(plot, one_paragraph; plot.attributes...)
 
     plot
 end
@@ -68,7 +68,11 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
         layout_formatted_text(str, ts, f, al, rot, jus, lh, col, scol, swi)
     end
 
-    text!(plot, glyphcollection)
+    text!(plot, glyphcollection;
+          position = plot.position,
+          offset = plot.offset
+          # what other attributes should we pass on here?
+         )
 
     plot
 end

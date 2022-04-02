@@ -70,7 +70,7 @@ function slidetext!(slide, text)
   xwidth, ywidth = rect.widths
   xorigin, yorigin = rect.origin
   origin_text = Point2f(xorigin,yorigin+ywidth)
-  t = text!(pane, text, position=origin_text, align=(:left,:top))
+  t = formattedtext!(pane, text, position=origin_text, align=(:left,:top))
 end
 
 
@@ -80,7 +80,7 @@ function slideheader!(slide, text)
   xwidth, ywidth = rect.widths
   xorigin, yorigin = rect.origin
   origin_text = Point2f(xorigin,yorigin+ywidth/2)
-  t = text!(pane, text, position=origin_text, align=(:left,:center))
+  t = formattedtext!(pane, text, position=origin_text, align=(:left,:center))
 end
 
 
@@ -90,7 +90,7 @@ function slidefooter!(slide, text)
   xwidth, ywidth = rect.widths
   xorigin, yorigin = rect.origin
   origin_text = Point2f(xorigin,yorigin+ywidth/2)
-  t = text!(pane, text, position=origin_text, align=(:left,:center))
+  t = formattedtext!(pane, text, position=origin_text, align=(:left,:center))
 end
 
 
