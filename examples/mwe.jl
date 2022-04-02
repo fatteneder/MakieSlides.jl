@@ -13,7 +13,6 @@ Here follows a very long text which I don't know about whether it will line brea
 
 ... above line should have wrapped around :(
 
-
 But here is some formatted text
 
 
@@ -28,15 +27,19 @@ slidefooter!(slide1, "Florian")
 
 
 slide2 = Slide(hide_decorations=hide_decorations)
-slideheader!(slide2, "TODO Formatted text")
+slideheader!(slide2, "TODO Formatted text (using Julia's Markdown parser)")
 slidetext!(slide2, """
 [x] Bold and italic text
 
-[ ] Automatic line wrapping (really needed, cf. Marpit)
+[ ] Underline and strikethrough text
 
-[ ] Line breaks (require an empty line between paragraphs or use single line breaks?)
+[ ] Insert blank lines
+
+[ ] Automatic line wrapping (really needed?), cf. Marpit
 
 [ ] Itemizations and enumerations
+
+[ ] Header levels
 
 [ ] Horizontal divider
 
@@ -49,13 +52,9 @@ slidetext!(slide2, """
 [ ] Links
 
 [ ] Footers/citations
+
+[ ] Emojis
 """)
-# slidetext!(slide2, """
-# - formatted text
-# - (inlined) math
-# - formatted tables
-# - code blocks
-# """)
 slidefooter!(slide2, "Florian")
 
 @time MakieSlides.save(joinpath(thisdir, "slide2.pdf"), slide2)
