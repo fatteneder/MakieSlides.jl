@@ -34,6 +34,28 @@ end
 
 function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.MD}})
 
+    ###
+    # Notes:
+    # - literals (`...`) and code blocks (```...```) are both wrapped as Markdown.Code.
+    # It think the way to distinguish them is to check whether one appears within the contents
+    # of a Markdown.Paragraph (=^= literal) or Markdown.MD(=^= code block).
+    # In the following example the literal is wrapped into a paragraph which is inside
+    # a List object, so it seems to work:
+    # md"""
+    # - item with a `literal`
+    # - another item
+    # """
+    #
+    # But what about
+    # md"""
+    # - item 
+    # ```
+    # nested code block here?
+    # ```
+    # """
+    # Markdown.jl interprets this as two separate objects, namely a Markdown.List and a
+    # Markdown.Code, so nothing to worry here.
+
     markdown = plot[1][]
     all_elements = Any[]
     for (index, element) in enumerate(markdown.content)
@@ -90,6 +112,12 @@ to_italic_font(x::NativeFont) = to_italic_font(x.family_name)
 to_italic_font(x::Vector{NativeFont}) = x
 
 
+to_code_font(x::Union{Symbol, String}) = to_font("$(string(x)) mono")
+to_code_font(x::Vector{String}) = to_code_font.(x)
+to_code_font(x::NativeFont) = to_code_font(x.family_name)
+to_code_font(x::Vector{NativeFont}) = x
+
+
 function layout_formatted_text(
         paragraph::Markdown.Paragraph, textsize::Union{AbstractVector, Number},
         font, align, rotation, justification, lineheight, color, strokecolor, strokewidth
@@ -107,6 +135,8 @@ function layout_formatted_text(
             element.text[1], to_bold_font(font)
         elseif element isa Markdown.Italic
             element.text[1], to_italic_font(font)
+        elseif element isa Markdown.Code
+            element.code, to_code_font(font)
         elseif element isa String
             element, to_font(font)
         else

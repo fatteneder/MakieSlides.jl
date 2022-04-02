@@ -20,6 +20,9 @@ But here is some formatted text
 *italic* works
 
 **bold** works
+
+`code` works (ignoring language for now; colored background would be cool;\n
+Dejavu Sans Mono not available on my system ...)
 """)
 slidefooter!(slide1, "Florian")
 @time MakieSlides.save(joinpath(thisdir, "slide1.pdf"), slide1)
@@ -30,9 +33,9 @@ slideheader!(slide2, "TODO Formatted text")
 slidetext!(slide2, """
 [x] Bold and italic text
 
-[ ] Line wrapping
+[ ] Automatic line wrapping (really needed, cf. Marpit)
 
-[ ] Inserting line breaks
+[ ] Line breaks (require an empty line between paragraphs or use single line breaks?)
 
 [ ] Itemizations and enumerations
 
