@@ -90,12 +90,7 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
         layout_formatted_text(str, ts, f, al, rot, jus, lh, col, scol, swi)
     end
 
-    text!(plot, glyphcollection;
-          position = plot.position,
-          offset = plot.offset,
-          space = plot.space
-          # what other attributes should we pass on here?
-         )
+    text!(plot, glyphcollection; plot.attributes...)
 
     plot
 end
@@ -123,7 +118,7 @@ function layout_formatted_text(
         paragraph::Markdown.Paragraph, textsize::Union{AbstractVector, Number},
         font, align, rotation, justification, lineheight, color, strokecolor, strokewidth
     )
-
+    
     rscale = to_textsize(textsize)
     rot = to_rotation(rotation)
 
