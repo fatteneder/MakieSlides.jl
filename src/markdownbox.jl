@@ -134,21 +134,21 @@ function layoutable(::Type{MarkdownBox}, fig_or_scene; bbox = nothing, kwargs...
 
     textpos = Observable(Point3f(0, 0, 0))
     onany(layoutobservables.computedbbox, padding) do bbox, padding
-
         tw = width(gridlayoutbb[])
         th = height(gridlayoutbb[])
-
         box = bbox.origin[1]
         boy = bbox.origin[2]
-
         # this is also part of the hack to improve left alignment until
         # boundingboxes are perfect
         tx = box + padding[1] + 0.5 * tw
         ty = boy + padding[3] + 0.5 * th
-
         textpos[] = Point3f(tx, ty, 0)
     end
 
+    lift(gridlayout.layoutobservables.computedbbox) do gl_bbox
+        # w, h = gl_bbox.widths
+        # display("$w, $h")
+    end
 
     # trigger first update, otherwise bounds are wrong somehow
     text[] = text[]

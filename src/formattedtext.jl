@@ -1,3 +1,6 @@
+import Makie: gl_bboxes
+
+
 """
     text(text::Markdown.MD)
 
@@ -20,7 +23,8 @@ Plots `Markdown` formatted text.
         space = :data,
         markerspace = :pixel,
         offset = (0.0, 0.0),
-        inspectable = theme(scene, :inspectable)
+        inspectable = theme(scene, :inspectable),
+        maxwidth = 50.0
     )
 end
 
@@ -60,7 +64,6 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.MD}})
     all_elements = Any[]
     for (index, element) in enumerate(markdown.content)
         if !(element isa Markdown.Paragraph)
-            display(typeof(element))
             error("Cannot plot markdown element '$element'")
         end
         append!(all_elements, element.content)
@@ -76,23 +79,94 @@ end
 
 function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
 
+    text = plot[:text]
+    linewrap_positions = Observable(Int64[])
+
     # attach a function to any text that calculates the glyph layout and stores it
-    glyphcollection = lift(plot[1], plot.textsize, plot.font, plot.align,
+    glyphcollection = lift(text, plot.textsize, plot.font, plot.align,
             plot.rotation, plot.justification, plot.lineheight,
-            plot.color, plot.strokecolor, plot.strokewidth) do str,
-                ts, f, al, rot, jus, lh, col, scol, swi
+            plot.color, plot.strokecolor, plot.strokewidth, linewrap_positions) do str,
+                ts, f, al, rot, jus, lh, col, scol, swi, positions
         ts = to_textsize(ts)
         f = to_font(f)
         rot = to_rotation(rot)
         col = to_color(col)
         scol = to_color(scol)
 
-        layout_formatted_text(str, ts, f, al, rot, jus, lh, col, scol, swi)
+        layout_formatted_text(str, positions, ts, f, al, rot, jus, lh, col, scol, swi)
+    end
+
+    default_glyphs   = glyphcollection[].glyphs
+    default_glyphbbs = gl_bboxes(glyphcollection[])
+    on(plot.maxwidth) do maxwidth
+        # bbox = boundingbox(glyphcollection[], Point3f(0,0,0), Quaternion(0,0,0,1))
+        linewrap_positions[] = estimate_linewrap_positions(default_glyphs, default_glyphbbs, maxwidth)
+        # display(positions)
+        # wrapped_text = if length(positions) > 0
+        #     wrapped_text = ""
+        #     for pos in positions
+        #         wrapped_text *= text[1:pos] * "\n"
+        #     end
+        #     wrapped_text *= text[positions[end]:end]
+        # else
+        #     text
+        # end
+        # display(text)
+        # display(wrapped_text)
+        # display(bbox.widths)
+        # line break manually here
     end
 
     text!(plot, glyphcollection; plot.attributes...)
 
     plot
+end
+
+
+function estimate_linewrap_positions(glyphs, glyphbbs, maxwidth)
+    N = length(glyphs)
+    @assert N == length(glyphbbs)
+    positions = Int64[]
+    last_linewrap_pos = 1
+    width = 0
+    for (pos, (g, bb)) in enumerate(zip(glyphs, glyphbbs))
+        width += bb.widths[1]
+        if width > maxwidth
+            # time to wrap, but we need a white space to do so, hence, search backwards
+            whitespace_pos = pos
+            for gg in reverse(glyphs[last_linewrap_pos:pos])
+                gg == ' ' && break
+            end
+            if whitespace_pos == last_linewrap_pos
+                @info "Failed to find whitespace for line wrapping, skipping ..."
+                return positions
+            end
+            push!(positions, whitespace_pos)
+            width = 0 # reset width count
+            last_linewrap_pos = whitespace_pos + 1
+        end
+    end
+    return positions
+end
+
+
+function Makie.plot!(plot::FormattedText{<:Tuple{<:Union{Markdown.Admonition, 
+                                                         Markdown.BlockQuote,
+                                                         Markdown.Bold,
+                                                         Markdown.Code,
+                                                         Markdown.Footnote,
+                                                         Markdown.Header,
+                                                         Markdown.HorizontalRule,
+                                                         Markdown.Image,
+                                                         Markdown.Italic,
+                                                         Markdown.LaTeX,
+                                                         Markdown.LineBreak,
+                                                         Markdown.Link,
+                                                         Markdown.List,
+                                                         Markdown.MD,
+                                                         Markdown.Paragraph,
+                                                         Markdown.Table}}})
+    error("plot! method not implemented for argument type '$(typeof(plot[1]))'")
 end
 
 
@@ -115,16 +189,20 @@ to_code_font(x::Vector{NativeFont}) = x
 
 
 function layout_formatted_text(
-        paragraph::Markdown.Paragraph, textsize::Union{AbstractVector, Number},
+        paragraph::Markdown.Paragraph, positions_linewraps::Vector{Int64},
+        textsize::Union{AbstractVector, Number},
         font, align, rotation, justification, lineheight, color, strokecolor, strokewidth
     )
-    
+
     rscale = to_textsize(textsize)
     rot = to_rotation(rotation)
 
     string = ""
     fontperchar = Any[]
     textsizeperchar = Any[]
+    scanned_length = 1
+    display(positions_linewraps)
+    iterate_position = iterate(positions_linewraps)
     for element in paragraph.content
 
         element_string, element_ft_font = if element isa Markdown.Bold
@@ -139,10 +217,24 @@ function layout_formatted_text(
             error("Cannot handle paragraph element '$(element)' which is of type '$(typeof(element))'")
         end
 
+        element_length = length(element_string)
+        if iterate_position !== nothing
+            next_position, state_position = iterate_position
+            delta_position = next_position - scanned_length
+            if delta_position < element_length
+                element_string = element_string[1:delta_position] * "\n" *
+                                 element_string[delta_position+1:end]
+                element_length += 1
+                iterate_position = iterate(iterate_position, state_position)
+            end
+        end
+
+        scanned_length += element_length
+        string = string * element_string
+
         element_fontperchar = Makie.attribute_per_char(element_string, element_ft_font)
         element_textsizeperchar = Makie.attribute_per_char(element_string, rscale)
 
-        string = string * element_string
         append!(fontperchar, element_fontperchar)
         append!(textsizeperchar, element_textsizeperchar)
     end

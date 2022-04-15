@@ -99,7 +99,7 @@ function layoutable(::Type{FormattedLabel}, fig_or_scene; bbox = nothing, kwargs
 
     @extract attrs (text, textsize, font, color, visible, halign, valign,
                     rotation, padding, strokecolor, strokewidth, strokevisible,
-                    backgroundcolor, backgroundvisible)
+                    backgroundcolor, backgroundvisible, tellwidth, tellheight)
 
     layoutobservables = LayoutObservables(attrs.width, attrs.height, attrs.tellwidth, attrs.tellheight,
         halign, valign, attrs.alignmode; suggestedbbox = bbox)
@@ -110,7 +110,6 @@ function layoutable(::Type{FormattedLabel}, fig_or_scene; bbox = nothing, kwargs
 
     textpos = Observable(Point3f(0, 0, 0))
 
-    # ibbox = @lift(round_to_IRect2D($(layoutobservables.computedbbox)))
     ibbox = lift(layoutobservables.computedbbox) do bbox
         round_to_IRect2D(bbox)
     end
@@ -127,27 +126,49 @@ function layoutable(::Type{FormattedLabel}, fig_or_scene; bbox = nothing, kwargs
 
     textbb = Ref(BBox(0, 1, 0, 1))
 
-    onany(text, textsize, font, rotation, padding) do text, textsize, font, rotation, padding
+    onany(text, textsize, font, rotation, padding, tellwidth, tellheight) do text, 
+            textsize, font, rotation, padding, tellwidth, tellheight
         textbb[] = Rect2f(boundingbox(fmttxt))
-        autowidth = width(textbb[]) + padding[1] + padding[2]
-        autoheight = height(textbb[]) + padding[3] + padding[4]
+        autowidth = tellwidth ? width(textbb[]) + padding[1] + padding[2] : nothing
+        autoheight = tellheight ? height(textbb[]) + padding[3] + padding[4] : nothing
         layoutobservables.autosize[] = (autowidth, autoheight)
     end
 
-    onany(layoutobservables.computedbbox, padding) do bbox, padding
-
-        tw = width(textbb[])
-        th = height(textbb[])
-
+    onany(layoutobservables.computedbbox, padding, valign, halign, tellwidth, tellheight) do bbox, 
+            padding, valign, halign, tellwidth, tellheight
+        textbb = Rect2f(boundingbox(fmttxt))
+        tw = width(textbb)
+        th = height(textbb)
+        w = width(bbox)
+        h = height(bbox)
         box = bbox.origin[1]
         boy = bbox.origin[2]
 
-        # this is also part of the hack to improve left alignment until
-        # boundingboxes are perfect
-        tx = box + padding[1] + 0.5 * tw
-        ty = boy + padding[3] + 0.5 * th
+        tx = box + padding[1]
+        tx += if tellwidth
+            0.5 * tw
+        elseif halign === :left
+            0.5 * tw
+        elseif halign === :center
+            0.5 * w
+        elseif halign === :right
+            w - 0.5 * tw
+        end
 
+        ty = boy + padding[3]
+        ty += if tellheight
+            0.5 * th
+        elseif valign === :top
+            h - 0.5 * th
+        elseif valign === :center
+            0.5 * h
+        elseif valign === :bottom
+            0.5 * th
+        end
         textpos[] = Point3f(tx, ty, 0)
+
+        # trigger text wrapping
+        fmttxt.maxwidth[] = w
     end
 
 
