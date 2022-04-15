@@ -61,13 +61,6 @@ end)
 MarkdownBox
 
 
-# from Makie/src/makielayout/layoutables/label.jl
-function layoutable(::Type{MarkdownBox}, fig_or_scene, text::AbstractString; kwargs...)
-    mdtext = Markdown.parse(text)
-    layoutable(MarkdownBox, fig_or_scene; text = mdtext, kwargs...)
-end
-
-
 # highjacking setindex! for GridPosition here to unpack the gridlayout from a MarkdownBox directly
 # Needed for
 # ```julia
@@ -76,7 +69,6 @@ end
 # ```
 # This seems hackish, but it does work out off the box for Labels.
 function Base.setindex!(gp::GridPosition, mdbox::MarkdownBox)
-    display("Hello from setindex!")
     gp.layout[gp.span.rows, gp.span.cols, gp.side] = mdbox.elements[:gridlayout]
 end
 
@@ -94,6 +86,19 @@ function Base.setindex!(fig::Figure, mdbox::MarkdownBox, rows, cols, side = Grid
 end
 
 
+# from Makie/src/makielayout/layoutables/label.jl
+function layoutable(::Type{MarkdownBox}, fig_or_scene, text::AbstractString; kwargs...)
+    mdtext = Markdown.parse(text)
+    layoutable(MarkdownBox, fig_or_scene; text = mdtext, kwargs...)
+end
+
+
+# from Makie/src/makielayout/layoutables/label.jl
+function layoutable(::Type{MarkdownBox}, fig_or_scene, md::Markdown.MD; kwargs...)
+    layoutable(MarkdownBox, fig_or_scene; text = md, kwargs...)
+end
+
+
 function layoutable(::Type{MarkdownBox}, fig_or_scene; bbox = nothing, kwargs...)
 
     topscene = get_topscene(fig_or_scene)
@@ -107,23 +112,27 @@ function layoutable(::Type{MarkdownBox}, fig_or_scene; bbox = nothing, kwargs...
     layoutobservables = LayoutObservables(attrs.width, attrs.height, attrs.tellwidth, attrs.tellheight,
         halign, valign, attrs.alignmode; suggestedbbox = bbox)
 
-    textpos = Observable(Point3f(0, 0, 0))
-
     scene = fig_or_scene isa Figure ? fig_or_scene.scene : fig_or_scene
-    gridlayout = GridLayout()
-    # for each markdown element add a formattedlabel as a row to gridlayout
-    gridlayout[1,1] = FormattedLabel(scene, text=text)
-    gridlayout[2,1] = Box(scene, tellheight=false)
+
+    # could also use Makie.vgrid! which is an alias to GridLayoutBase.vbox! which does just the
+    # same thing as we do here
+    n_elements = length(text[].content) + 1 # + 1 for spacefilling box at the end
+    gridlayout = GridLayout(n_elements, 1)     
+    for (idx, paragraph) in enumerate(text[].content)
+        gridlayout[idx,1] = FormattedLabel(fig_or_scene, text=paragraph)
+    end
+    gridlayout[end, 1] = Box(fig_or_scene, tellheight=false)
 
     gridlayoutbb = Ref(BBox(0, 1, 0, 1))
-
     onany(text, textsize, font, rotation, padding) do text, textsize, font, rotation, padding
+        scene = fig_or_scene isa Figure ? fig_or_scene.scene : fig_or_scene
         gridlayoutbb[] = Rect2f(boundingbox(scene))
         autowidth = width(gridlayoutbb[]) + padding[1] + padding[2]
         autoheight = height(gridlayoutbb[]) + padding[3] + padding[4]
         layoutobservables.autosize[] = (autowidth, autoheight)
     end
 
+    textpos = Observable(Point3f(0, 0, 0))
     onany(layoutobservables.computedbbox, padding) do bbox, padding
 
         tw = width(gridlayoutbb[])
