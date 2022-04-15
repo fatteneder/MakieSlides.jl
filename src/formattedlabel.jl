@@ -17,7 +17,7 @@ export FormattedLabel
 using Makie.MakieLayout
 import Makie.MakieLayout: @Layoutable, layoutable, get_topscene,
                           @documented_attributes, lift_parent_attribute, docvarstring,
-                          subtheme, LayoutObservables
+                          subtheme, LayoutObservables, round_to_IRect2D
 
 
 # from src/makielayout/types.jl
@@ -59,6 +59,16 @@ function default_attributes(::Type{FormattedLabel}, scene)
         tellheight = true
         "The align mode of the text in its parent GridLayout."
         alignmode = Inside()
+        "Controls if the background is visible."
+        backgroundvisible = true
+        "The color of the background. "
+        backgroundcolor = RGBf(0.9, 0.9, 0.9)
+        "The line width of the rectangle's border."
+        strokewidth = 1f0
+        "Controls if the border of the rectangle is visible."
+        strokevisible = true
+        "The color of the border."
+        strokecolor = RGBf(0, 0, 0)
     end
     (attributes = attrs, documentation = docdict, defaults = defaultdict)
 end
@@ -88,15 +98,28 @@ function layoutable(::Type{FormattedLabel}, fig_or_scene; bbox = nothing, kwargs
     attrs = merge!(merge!(Attributes(kwargs), theme_attrs), default_attrs)
 
     @extract attrs (text, textsize, font, color, visible, halign, valign,
-        rotation, padding)
+                    rotation, padding, strokecolor, strokewidth, strokevisible,
+                    backgroundcolor, backgroundvisible)
 
     layoutobservables = LayoutObservables(attrs.width, attrs.height, attrs.tellwidth, attrs.tellheight,
         halign, valign, attrs.alignmode; suggestedbbox = bbox)
 
+    strokecolor_with_visibility = lift(strokecolor, strokevisible) do col, vis
+        vis ? col : RGBAf(0, 0, 0, 0)
+    end
+
     textpos = Observable(Point3f(0, 0, 0))
 
+    # ibbox = @lift(round_to_IRect2D($(layoutobservables.computedbbox)))
+    ibbox = lift(layoutobservables.computedbbox) do bbox
+        round_to_IRect2D(bbox)
+    end
+    bg = poly!(topscene, ibbox, color = backgroundcolor, visible = backgroundvisible,
+               strokecolor = strokecolor_with_visibility, strokewidth = strokewidth,
+               inspectable = false)
+
     # here we use now formattedtext! instead of text!
-    t = formattedtext!(topscene, text, position = textpos, textsize = textsize, font = font, color = color,
+    fmttxt = formattedtext!(topscene, text, position = textpos, textsize = textsize, font = font, color = color,
         visible = visible, align = (:center, :center), rotation = rotation, markerspace = :data,
         justification = attrs.justification,
         lineheight = attrs.lineheight,
@@ -105,7 +128,7 @@ function layoutable(::Type{FormattedLabel}, fig_or_scene; bbox = nothing, kwargs
     textbb = Ref(BBox(0, 1, 0, 1))
 
     onany(text, textsize, font, rotation, padding) do text, textsize, font, rotation, padding
-        textbb[] = Rect2f(boundingbox(t))
+        textbb[] = Rect2f(boundingbox(fmttxt))
         autowidth = width(textbb[]) + padding[1] + padding[2]
         autoheight = height(textbb[]) + padding[3] + padding[4]
         layoutobservables.autosize[] = (autowidth, autoheight)
@@ -133,7 +156,8 @@ function layoutable(::Type{FormattedLabel}, fig_or_scene; bbox = nothing, kwargs
     # trigger bbox
     layoutobservables.suggestedbbox[] = layoutobservables.suggestedbbox[]
 
-    lt = FormattedLabel(fig_or_scene, layoutobservables, attrs, Dict(:text => t))
+    lt = FormattedLabel(fig_or_scene, layoutobservables, attrs, 
+                        Dict(:formattedtext => fmttxt, :background => bg))
 
     lt
 end
