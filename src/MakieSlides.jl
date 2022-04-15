@@ -19,6 +19,7 @@ export formattedtext, formattedtext!
 
 include("formattedtext.jl")
 include("formattedlabel.jl")
+include("markdownbox.jl")
 
 
 struct Slide
