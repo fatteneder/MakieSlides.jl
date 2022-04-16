@@ -119,41 +119,13 @@ function layoutable(::Type{MarkdownBox}, fig_or_scene; bbox = nothing, kwargs...
     n_elements = length(text[].content) + 1 # + 1 for spacefilling box at the end
     gridlayout = GridLayout(n_elements, 1)     
     for (idx, paragraph) in enumerate(text[].content)
-        gridlayout[idx,1] = FormattedLabel(fig_or_scene, text=paragraph)
+        gridlayout[idx,1] = FormattedLabel(fig_or_scene, text=paragraph,
+                                           halign=:left, tellwidth=true, tellheight=true,
+                                           valign=:bottom)
     end
     gridlayout[end, 1] = Box(fig_or_scene, tellheight=false)
 
-    gridlayoutbb = Ref(BBox(0, 1, 0, 1))
-    onany(text, textsize, font, rotation, padding) do text, textsize, font, rotation, padding
-        scene = fig_or_scene isa Figure ? fig_or_scene.scene : fig_or_scene
-        gridlayoutbb[] = Rect2f(boundingbox(scene))
-        autowidth = width(gridlayoutbb[]) + padding[1] + padding[2]
-        autoheight = height(gridlayoutbb[]) + padding[3] + padding[4]
-        layoutobservables.autosize[] = (autowidth, autoheight)
-    end
-
-    textpos = Observable(Point3f(0, 0, 0))
-    onany(layoutobservables.computedbbox, padding) do bbox, padding
-        tw = width(gridlayoutbb[])
-        th = height(gridlayoutbb[])
-        box = bbox.origin[1]
-        boy = bbox.origin[2]
-        # this is also part of the hack to improve left alignment until
-        # boundingboxes are perfect
-        tx = box + padding[1] + 0.5 * tw
-        ty = boy + padding[3] + 0.5 * th
-        textpos[] = Point3f(tx, ty, 0)
-    end
-
-    lift(gridlayout.layoutobservables.computedbbox) do gl_bbox
-        # w, h = gl_bbox.widths
-        # display("$w, $h")
-    end
-
-    # trigger first update, otherwise bounds are wrong somehow
-    text[] = text[]
-    # trigger bbox
-    layoutobservables.suggestedbbox[] = layoutobservables.suggestedbbox[]
+    rowgap!(gridlayout, 0)
 
     lt = MarkdownBox(fig_or_scene, layoutobservables, attrs, Dict(:gridlayout => gridlayout))
 

@@ -101,8 +101,9 @@ function layoutable(::Type{FormattedLabel}, fig_or_scene; bbox = nothing, kwargs
                     rotation, padding, strokecolor, strokewidth, strokevisible,
                     backgroundcolor, backgroundvisible, tellwidth, tellheight)
 
-    layoutobservables = LayoutObservables(attrs.width, attrs.height, attrs.tellwidth, attrs.tellheight,
-        halign, valign, attrs.alignmode; suggestedbbox = bbox)
+    layoutobservables = LayoutObservables(attrs.width, attrs.height, 
+                                          attrs.tellwidth, attrs.tellheight, halign, valign, 
+                                          attrs.alignmode; suggestedbbox = bbox)
 
     strokecolor_with_visibility = lift(strokecolor, strokevisible) do col, vis
         vis ? col : RGBAf(0, 0, 0, 0)
@@ -118,64 +119,51 @@ function layoutable(::Type{FormattedLabel}, fig_or_scene; bbox = nothing, kwargs
                inspectable = false)
 
     # here we use now formattedtext! instead of text!
-    fmttxt = formattedtext!(topscene, text, position = textpos, textsize = textsize, font = font, color = color,
-        visible = visible, align = (:center, :center), rotation = rotation, markerspace = :data,
-        justification = attrs.justification,
-        lineheight = attrs.lineheight,
-        inspectable = false)
-
-    textbb = Ref(BBox(0, 1, 0, 1))
-
-    onany(text, textsize, font, rotation, padding, tellwidth, tellheight) do text, 
-            textsize, font, rotation, padding, tellwidth, tellheight
-        textbb[] = Rect2f(boundingbox(fmttxt))
-        autowidth = tellwidth ? width(textbb[]) + padding[1] + padding[2] : nothing
-        autoheight = tellheight ? height(textbb[]) + padding[3] + padding[4] : nothing
-        layoutobservables.autosize[] = (autowidth, autoheight)
-    end
+    fmttxt = formattedtext!(topscene, text, position = textpos, textsize = textsize, 
+        font = font, color = color, visible = visible, align = (halign, valign), 
+        rotation = rotation, markerspace = :data, justification = attrs.justification,
+        lineheight = attrs.lineheight, inspectable = false)
 
     onany(layoutobservables.computedbbox, padding, valign, halign, tellwidth, tellheight) do bbox, 
             padding, valign, halign, tellwidth, tellheight
-        textbb = Rect2f(boundingbox(fmttxt))
-        tw = width(textbb)
-        th = height(textbb)
-        w = width(bbox)
-        h = height(bbox)
-        box = bbox.origin[1]
-        boy = bbox.origin[2]
 
+        textbb = Rect2f(boundingbox(fmttxt))
+        tw, th = width(textbb), height(textbb)
+        w, h = width(bbox), height(bbox)
+        println("Dimensions: $w, $h, $th")
+        box, boy = bbox.origin
+
+        # position text
         tx = box + padding[1]
-        tx += if tellwidth
-            0.5 * tw
-        elseif halign === :left
-            0.5 * tw
+        tx += if halign === :right
+            w
         elseif halign === :center
             0.5 * w
-        elseif halign === :right
-            w - 0.5 * tw
+        elseif halign === :left
+            0
         end
-
         ty = boy + padding[3]
-        ty += if tellheight
-            0.5 * th
-        elseif valign === :top
-            h - 0.5 * th
+        ty += if valign === :top
+            h
         elseif valign === :center
             0.5 * h
         elseif valign === :bottom
-            0.5 * th
+            0
         end
         textpos[] = Point3f(tx, ty, 0)
+        println("Text position: $(textpos[])")
 
         # trigger text wrapping
+        println("       $tw, $w")
         fmttxt.maxwidth[] = w
+
+        if h != th
+            println("   Line height: $h -> $th")
+            layoutobservables.autosize[] = (nothing, th)
+            # layoutobservables.computedbbox[] = Rect2f(box, boy, w + padding[1] + padding[2], th)
+            return
+        end
     end
-
-
-    # trigger first update, otherwise bounds are wrong somehow
-    text[] = text[]
-    # trigger bbox
-    layoutobservables.suggestedbbox[] = layoutobservables.suggestedbbox[]
 
     lt = FormattedLabel(fig_or_scene, layoutobservables, attrs, 
                         Dict(:formattedtext => fmttxt, :background => bg))

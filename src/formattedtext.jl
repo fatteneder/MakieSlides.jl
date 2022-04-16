@@ -14,7 +14,7 @@ Plots `Markdown` formatted text.
         font = theme(scene, :font),
         strokecolor = (:black, 0.0),
         strokewidth = 0,
-        align = (:left, :bottom),
+        align = (:left, :top),
         rotation = 0.0,
         textsize = 20,
         position = (0.0, 0.0),
@@ -24,7 +24,7 @@ Plots `Markdown` formatted text.
         markerspace = :pixel,
         offset = (0.0, 0.0),
         inspectable = theme(scene, :inspectable),
-        maxwidth = 50.0
+        maxwidth = 0
     )
 end
 
@@ -99,22 +99,7 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
     default_glyphs   = glyphcollection[].glyphs
     default_glyphbbs = gl_bboxes(glyphcollection[])
     on(plot.maxwidth) do maxwidth
-        # bbox = boundingbox(glyphcollection[], Point3f(0,0,0), Quaternion(0,0,0,1))
         linewrap_positions[] = estimate_linewrap_positions(default_glyphs, default_glyphbbs, maxwidth)
-        # display(positions)
-        # wrapped_text = if length(positions) > 0
-        #     wrapped_text = ""
-        #     for pos in positions
-        #         wrapped_text *= text[1:pos] * "\n"
-        #     end
-        #     wrapped_text *= text[positions[end]:end]
-        # else
-        #     text
-        # end
-        # display(text)
-        # display(wrapped_text)
-        # display(bbox.widths)
-        # line break manually here
     end
 
     text!(plot, glyphcollection; plot.attributes...)
@@ -124,28 +109,37 @@ end
 
 
 function estimate_linewrap_positions(glyphs, glyphbbs, maxwidth)
+    maxwidth <= 0 && return Int64[]
     N = length(glyphs)
     @assert N == length(glyphbbs)
     positions = Int64[]
-    last_linewrap_pos = 1
-    width = 0
-    for (pos, (g, bb)) in enumerate(zip(glyphs, glyphbbs))
-        width += bb.widths[1]
-        if width > maxwidth
+    last_linewrap_pos, accumulated_width, pos = 1, 0, 1
+    while pos <= N
+        g, bb = glyphs[pos], glyphbbs[pos]
+        accumulated_width += width(bb)
+        if accumulated_width > maxwidth
             # time to wrap, but we need a white space to do so, hence, search backwards
             whitespace_pos = pos
-            for gg in reverse(glyphs[last_linewrap_pos:pos])
-                gg == ' ' && break
+            for j = reverse(last_linewrap_pos+1:pos-1)
+                if glyphs[j] == ' '; whitespace_pos = j; break; end
             end
-            if whitespace_pos == last_linewrap_pos
+            # if whitespace_pos == last_linewrap_pos || whitespace_pos == pos
+            if whitespace_pos == pos
                 @info "Failed to find whitespace for line wrapping, skipping ..."
                 return positions
             end
             push!(positions, whitespace_pos)
-            width = 0 # reset width count
-            last_linewrap_pos = whitespace_pos + 1
+            accumulated_width, last_linewrap_pos = 0, whitespace_pos
+            pos = last_linewrap_pos + 1 # + 1 to skip the whitespace at which we line wrap
+        else
+            pos += 1
         end
     end
+    # for (i, (g, bb)) in enumerate(zip(glyphs, glyphbbs))
+    #     println("$i : $g : $bb")
+    # end
+    # display(maxwidth)
+    # display(positions)
     return positions
 end
 
@@ -194,6 +188,8 @@ function layout_formatted_text(
         font, align, rotation, justification, lineheight, color, strokecolor, strokewidth
     )
 
+    print("Formatting text: ")
+
     rscale = to_textsize(textsize)
     rot = to_rotation(rotation)
 
@@ -201,8 +197,7 @@ function layout_formatted_text(
     fontperchar = Any[]
     textsizeperchar = Any[]
     scanned_length = 1
-    display(positions_linewraps)
-    iterate_position = iterate(positions_linewraps)
+    iter = iterate(positions_linewraps)
     for element in paragraph.content
 
         element_string, element_ft_font = if element isa Markdown.Bold
@@ -218,15 +213,14 @@ function layout_formatted_text(
         end
 
         element_length = length(element_string)
-        if iterate_position !== nothing
-            next_position, state_position = iterate_position
-            delta_position = next_position - scanned_length
-            if delta_position < element_length
-                element_string = element_string[1:delta_position] * "\n" *
-                                 element_string[delta_position+1:end]
-                element_length += 1
-                iterate_position = iterate(iterate_position, state_position)
-            end
+
+        while iter !== nothing 
+            next_position, state_position = iter
+            next_position > scanned_length + element_length && break
+            whitespace_position = next_position - scanned_length + 1
+            element_string = element_string[1:whitespace_position-1] * "\n" * element_string[whitespace_position+1:end]
+            element_length = length(element_string)
+            iter = iterate(positions_linewraps, state_position)
         end
 
         scanned_length += element_length
@@ -238,6 +232,8 @@ function layout_formatted_text(
         append!(fontperchar, element_fontperchar)
         append!(textsizeperchar, element_textsizeperchar)
     end
+
+    display(string)
 
     glyphcollection = Makie.glyph_collection(string, fontperchar, textsizeperchar, align[1],
         align[2], lineheight, justification, rot, color, strokecolor, strokewidth)
