@@ -28,6 +28,6 @@ Ideally, a line break should insert a new paragraph which in turn then will add 
 layoutable FormattedLabel objects into a MarkdownBox.
 
 Did it work?
-""")
+""", backgroundvisible=true)
 
 f

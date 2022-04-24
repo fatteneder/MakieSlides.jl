@@ -14,7 +14,7 @@ Plots `Markdown` formatted text.
         font = theme(scene, :font),
         strokecolor = (:black, 0.0),
         strokewidth = 0,
-        align = (:left, :top),
+        align = (:left, :bottom),
         rotation = 0.0,
         textsize = 20,
         position = (0.0, 0.0),
@@ -64,7 +64,7 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.MD}})
     all_elements = Any[]
     for (index, element) in enumerate(markdown.content)
         if !(element isa Markdown.Paragraph)
-            error("Cannot plot markdown element '$element'")
+            error("Cannot format markdown element '$element'")
         end
         append!(all_elements, element.content)
         index < length(markdown.content) && push!(all_elements, "\n")

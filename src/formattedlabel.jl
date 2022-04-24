@@ -1,29 +1,8 @@
-### 
-# This file implements a layoutable type FormattedLabel that is quite similar to the 
-# Label type. We do so to avoid type piracy from Makie. The only thing by which 
-# FormattedLabel and Label differ (for now) is the use of `formattedtext!` instead of `text!`
-# to print the text. We also adjusted the defaults so that text is 
-# - valign = :top
-# - halign = :left
-# - tellwidth = false
-#
-# Note: All implementation details of Label are spread across three files. We have combined
-# those details into one file here.
-
-
-export FormattedLabel
-
-# imports
-using Makie.MakieLayout
-import Makie.MakieLayout: @Layoutable, layoutable, get_topscene,
-                          @documented_attributes, lift_parent_attribute, docvarstring,
-                          subtheme, LayoutObservables, round_to_IRect2D
+# Note: All implementation details of @Layoutables are spread across three files within Makie.
+# We have combined those details into one file here.
 
 
 # from src/makielayout/types.jl
-# note: @Layoutable cannot be used to define parameteric layoutables, 
-# e.g. @Layoutable FormattedLabel{Markdown.Paragraph} does not work ...
-# I think the macro could be adapted easily, but do we really need it?
 @Layoutable FormattedLabel
 
 
@@ -45,9 +24,9 @@ function default_attributes(::Type{FormattedLabel}, scene)
         "The lineheight multiplier for the text."
         lineheight = 1.0
         "The vertical alignment of the text in its suggested boundingbox"
-        valign = :top
+        valign = :center
         "The horizontal alignment of the text in its suggested boundingbox"
-        halign = :left
+        halign = :center
         "The counterclockwise rotation of the text in radians."
         rotation = 0f0
         "The extra space added to the sides of the text boundingbox."
@@ -57,13 +36,13 @@ function default_attributes(::Type{FormattedLabel}, scene)
         "The width setting of the text."
         width = Auto()
         "Controls if the parent layout can adjust to this element's width"
-        tellwidth = false
+        tellwidth = true
         "Controls if the parent layout can adjust to this element's height"
         tellheight = true
         "The align mode of the text in its parent GridLayout."
         alignmode = Inside()
         "Controls if the background is visible."
-        backgroundvisible = true
+        backgroundvisible = false
         "The color of the background. "
         backgroundcolor = RGBf(0.9, 0.9, 0.9)
         "The line width of the rectangle's border."
@@ -103,42 +82,30 @@ function layoutable(::Type{FormattedLabel}, fig_or_scene; bbox = nothing, kwargs
 
     @extract attrs (text, textsize, font, color, visible, halign, valign,
                     rotation, padding, strokecolor, strokewidth, strokevisible,
-                    backgroundcolor, backgroundvisible, tellwidth, tellheight)
+                    backgroundcolor, backgroundvisible)#, tellwidth, tellheight)
 
     layoutobservables = LayoutObservables(attrs.width, attrs.height, 
                                           attrs.tellwidth, attrs.tellheight, halign, valign, 
                                           attrs.alignmode; suggestedbbox = bbox)
 
-    strokecolor_with_visibility = lift(strokecolor, strokevisible) do col, vis
-        vis ? col : RGBAf(0, 0, 0, 0)
-    end
-
     textpos = Observable(Point3f(0, 0, 0))
 
-    ibbox = lift(layoutobservables.computedbbox) do bbox
-        round_to_IRect2D(bbox)
-    end
-    bg = poly!(topscene, ibbox, color = backgroundcolor, visible = backgroundvisible,
-               strokecolor = strokecolor_with_visibility, strokewidth = strokewidth,
-               inspectable = false)
-
-    # here we use now formattedtext! instead of text!
+    # the text
     fmttxt = formattedtext!(topscene, text, position = textpos, textsize = textsize, 
-        font = font, color = color, visible = visible, align = (halign, valign), 
+        font = font, color = color, visible = visible, align = (:left, :top), 
         rotation = rotation, markerspace = :data, justification = attrs.justification,
         lineheight = attrs.lineheight, inspectable = false)
 
-    onany(layoutobservables.computedbbox, padding, valign, halign, tellwidth, tellheight) do bbox, 
-            padding, valign, halign, tellwidth, tellheight
+    onany(layoutobservables.computedbbox, padding, halign, valign) do bbox, padding, halign, valign
 
         textbb = Rect2f(boundingbox(fmttxt))
         tw, th = width(textbb), height(textbb)
         w, h = width(bbox), height(bbox)
-        # println("Dimensions: $w, $h, $th")
         box, boy = bbox.origin
 
         # position text
         tx = box + padding[1]
+        isnothing(tx) && error()
         tx += if halign === :right
             w
         elseif halign === :center
@@ -154,25 +121,29 @@ function layoutable(::Type{FormattedLabel}, fig_or_scene; bbox = nothing, kwargs
         elseif valign === :bottom
             0
         end
+
         textpos[] = Point3f(tx, ty, 0)
-        # println("Text position: $(textpos[])")
 
-        # trigger text wrapping
-        # println("       $tw, $w")
         fmttxt.maxwidth[] = w
-
-        # two bugs
-        # - box height of first FormattedLabel can be wrong if text is larger than 100 initially
-        # - sometimes, box height does not match exactly formatted text height
-
         if h != th
-            # println("   Line height: $h -> $th")
             layoutobservables.autosize[] = (nothing, th)
-            # layoutobservables.computedbbox[] = Rect2f(box, boy, w + padding[1] + padding[2], th)
-            return
         end
     end
 
-    FormattedLabel(fig_or_scene, layoutobservables, attrs, 
-                        Dict(:formattedtext => fmttxt, :background => bg))
+    # background box
+    strokecolor_with_visibility = lift(strokecolor, strokevisible) do col, vis
+        vis ? col : RGBAf(0, 0, 0, 0)
+    end
+
+    ibbox = lift(layoutobservables.computedbbox) do bbox
+        ibbox = round_to_IRect2D(layoutobservables.suggestedbbox[])
+    end
+
+    bg = poly!(topscene, ibbox, color = backgroundcolor, visible = backgroundvisible,
+               strokecolor = strokecolor_with_visibility, strokewidth = strokewidth,
+               inspectable = false)
+    translate!(bg, 0, 0, -10) # move behind text
+
+    FormattedLabel(fig_or_scene, layoutobservables, attrs,
+                   Dict(:formattedtext => fmttxt, :background => bg))
 end

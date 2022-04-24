@@ -1,15 +1,5 @@
-### 
-# Note: All implementation details of @Layoutables are spread across three files. 
+# Note: All implementation details of @Layoutables are spread across three files within Makie.
 # We have combined those details into one file here.
-
-
-export FormattedList
-
-
-using Makie.MakieLayout
-import Makie.MakieLayout: @Layoutable, layoutable, get_topscene,
-                          @documented_attributes, lift_parent_attribute, docvarstring,
-                          subtheme, LayoutObservables, round_to_IRect2D
 
 
 # from src/makielayout/types.jl
@@ -135,7 +125,6 @@ function layoutable(::Type{FormattedList}, fig_or_scene; bbox = nothing, kwargs.
     colgap!(gridlayout, 0)
 
     FormattedList(fig_or_scene, layoutobservables, attrs, Dict(:gridlayout => gridlayout))
-                        # Dict(:background => bg))
 end
 
 

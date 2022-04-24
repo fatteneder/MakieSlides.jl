@@ -9,13 +9,22 @@ using Printf
 import Cairo
 
 
-# dependencies on Makie internals
+# Makie internal dependencies of formattedtext.jl
 import Makie: NativeFont
 import MakieCore: automatic
 
 
+# Makie internal dependencies of formattedlabel.jl, formattedlist, markdownbox.jl
+using Makie.MakieLayout
+import Makie.MakieLayout: @Layoutable, layoutable, get_topscene,
+                          @documented_attributes, lift_parent_attribute, docvarstring,
+                          subtheme, LayoutObservables, round_to_IRect2D
+using Makie.GridLayoutBase
+
+
 export Slide, slidetext!, slideheader!, slidefooter!, Presentation, save
 export formattedtext, formattedtext!
+export FormattedLabel, FormattedList, MarkdownBox
 
 
 include("formattedtext.jl")

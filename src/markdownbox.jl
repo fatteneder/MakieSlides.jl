@@ -1,11 +1,5 @@
-export MarkdownBox
-
-# imports
-using Makie.MakieLayout
-import Makie.MakieLayout: @Layoutable, layoutable, get_topscene,
-                          @documented_attributes, lift_parent_attribute, docvarstring,
-                          subtheme, LayoutObservables
-using Makie.GridLayoutBase
+# Note: All implementation details of @Layoutables are spread across three files within Makie.
+# We have combined those details into one file here.
 
 
 @Layoutable MarkdownBox
@@ -46,9 +40,14 @@ function default_attributes(::Type{MarkdownBox}, scene)
         tellheight = true
         "The align mode of the text in its parent GridLayout."
         alignmode = Inside()
+        "Controls if the background is visible."
+        backgroundvisible = false
+        "The color of the background. "
+        backgroundcolor = RGBf(0.9, 0.9, 0.9)
     end
     (attributes = attrs, documentation = docdict, defaults = defaultdict)
 end
+
 
 @doc """
 MarkdownBox has the following attributes:
@@ -107,27 +106,27 @@ function layoutable(::Type{MarkdownBox}, fig_or_scene; bbox = nothing, kwargs...
     attrs = merge!(merge!(Attributes(kwargs), theme_attrs), default_attrs)
 
     @extract attrs (text, textsize, font, color, visible, halign, valign,
-        rotation, padding)
+                    rotation, padding, backgroundvisible, backgroundcolor)
 
-    layoutobservables = LayoutObservables(attrs.width, attrs.height, attrs.tellwidth, attrs.tellheight,
-        halign, valign, attrs.alignmode; suggestedbbox = bbox)
+    layoutobservables = LayoutObservables(attrs.width, attrs.height, attrs.tellwidth, 
+                                          attrs.tellheight, halign, valign, attrs.alignmode; 
+                                          suggestedbbox = bbox)
 
-    scene = fig_or_scene isa Figure ? fig_or_scene.scene : fig_or_scene
-
-    # could also use Makie.vgrid! which is an alias to GridLayoutBase.vbox! which does just the
-    # same thing as we do here
     n_elements = length(text[].content) + 1 # + 1 for spacefilling box at the end
     gridlayout = GridLayout(n_elements, 1)     
-    for (idx, paragraph) in enumerate(text[].content)
-        gridlayout[idx,1] = FormattedLabel(fig_or_scene, text=paragraph,
-                                           halign=:left, tellwidth=true, tellheight=true,
-                                           valign=:bottom)
+    for (idx, md_element) in enumerate(text[].content)
+        gridlayout[idx,1] = FormattedLabel(fig_or_scene, text=md_element,
+                                           halign=:left, valign=:top,
+                                           tellwidth=true, tellheight=true,
+                                           backgroundvisible=backgroundvisible,
+                                           backgroundcolor=backgroundcolor)
     end
-    gridlayout[end, 1] = Box(fig_or_scene, tellheight=false)
+    gridlayout[end, 1] = Box(fig_or_scene, tellheight=false, visible=backgroundvisible,
+                             color=backgroundcolor)
+
+    layoutobservables.suggestedbbox[] = layoutobservables.suggestedbbox[]
 
     rowgap!(gridlayout, 0)
 
-    lt = MarkdownBox(fig_or_scene, layoutobservables, attrs, Dict(:gridlayout => gridlayout))
-
-    lt
+    MarkdownBox(fig_or_scene, layoutobservables, attrs, Dict(:gridlayout => gridlayout))
 end

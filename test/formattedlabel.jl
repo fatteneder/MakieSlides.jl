@@ -3,16 +3,16 @@ using GLMakie
 
 f = Figure()
 
-lbl = Label(f[1,1], 
+lbl = Label(f[1,2],
 """
 Label
 *Label*
 **Label**
 `Label`
 """, tellwidth=false, halign=:left, valign=:top)
-box = Box(f[2,1], tellheight=false, visible=false)
+box = Box(f[2,2], tellheight=false, visible=false)
 
-lbl = FormattedLabel(f[1,2], 
+lbl = FormattedLabel(f[1,1], 
 """
 FormattedLabel
 
@@ -21,7 +21,7 @@ FormattedLabel
 **FormattedLabel**
 
 `FormattedLabel`
-""")
-box = Box(f[2,2], tellheight=false, visible=false)
+""", tellwidth=false, halign=:left, valign=:top, backgroundvisible=true)
+box = Box(f[2,1], tellheight=false, visible=false)
 
 f
