@@ -103,6 +103,8 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
                                                            maxwidth)
     end
 
+    plot.maxwidth[] = plot.maxwidth[]
+
     text!(plot, glyphcollection; plot.attributes...)
 
     plot
@@ -116,18 +118,22 @@ function estimate_linewrap_positions(glyphs, glyphbbs, maxwidth)
     positions = Int64[]
     last_linewrap_pos, accumulated_width, pos = 1, 0, 1
     while pos <= N
-        g, bb = glyphs[pos], glyphbbs[pos]
+        bb = glyphbbs[pos]
         accumulated_width += width(bb)
         if accumulated_width > maxwidth
-            # time to wrap, but we need a white space to do so, hence, search backwards
+            # time to wrap, search backwards for next whitespace
             whitespace_pos = pos
             for j = reverse(last_linewrap_pos+1:pos-1)
                 if glyphs[j] == ' '; whitespace_pos = j; break; end
             end
-            # if whitespace_pos == last_linewrap_pos || whitespace_pos == pos
             if whitespace_pos == pos
-                @info "Failed to find whitespace for line wrapping, skipping ..."
-                return positions
+                # failed to find any whitespace and exact wrapping has now failed
+                # we search forwards for the next whitespace
+                # this will yield overly height boundingboxes -- is that an issue?
+                while whitespace_pos <= N
+                    if glyphs[whitespace_pos] == ' '; break; end
+                    whitespace_pos += 1
+                end
             end
             push!(positions, whitespace_pos)
             accumulated_width, last_linewrap_pos = 0, whitespace_pos
@@ -136,11 +142,6 @@ function estimate_linewrap_positions(glyphs, glyphbbs, maxwidth)
             pos += 1
         end
     end
-    # for (i, (g, bb)) in enumerate(zip(glyphs, glyphbbs))
-    #     println("$i : $g : $bb")
-    # end
-    # display(maxwidth)
-    # display(positions)
     return positions
 end
 
@@ -184,12 +185,10 @@ to_code_font(x::Vector{NativeFont}) = x
 
 
 function layout_formatted_text(
-        paragraph::Markdown.Paragraph, positions_linewraps::Vector{Int64},
+        paragraph::Markdown.Paragraph, linewrap_positions::Vector{Int64},
         textsize::Union{AbstractVector, Number},
         font, align, rotation, justification, lineheight, color, strokecolor, strokewidth
     )
-
-    # print("Formatting text: ")
 
     rscale = to_textsize(textsize)
     rot = to_rotation(rotation)
@@ -197,46 +196,45 @@ function layout_formatted_text(
     string = ""
     fontperchar = Any[]
     textsizeperchar = Any[]
-    scanned_length = 1
-    iter = iterate(positions_linewraps)
-    for element in paragraph.content
+    scanned_position = 0
+    iter = iterate(linewrap_positions)
+    for textelement in paragraph.content
 
-        element_string, element_ft_font = if element isa Markdown.Bold
-            element.text[1], to_bold_font(font)
-        elseif element isa Markdown.Italic
-            element.text[1], to_italic_font(font)
-        elseif element isa Markdown.Code
-            element.code, to_code_font(font)
-        elseif element isa String
-            element, to_font(font)
+        textelement_string, textelement_ft_font = if textelement isa Markdown.Bold
+            first(textelement.text), to_bold_font(font)
+        elseif textelement isa Markdown.Italic
+            first(textelement.text), to_italic_font(font)
+        elseif textelement isa Markdown.Code
+            textelement.code, to_code_font(font)
+        elseif textelement isa String
+            textelement, to_font(font)
         else
-            error("Cannot handle paragraph element '$(element)' which " *
-                  "is of type '$(typeof(element))'")
+            error("Cannot handle paragraph text element '$(textelement)' which " *
+                  "is of type '$(typeof(textelement))'")
         end
 
-        element_length = length(element_string)
+        textelement_length = length(textelement_string)
 
         while iter !== nothing 
-            next_position, state_position = iter
-            next_position > scanned_length + element_length && break
-            whitespace_position = next_position - scanned_length + 1
-            element_string = element_string[1:whitespace_position-1] * "\n" *
-                             element_string[whitespace_position+1:end]
-            element_length = length(element_string)
-            iter = iterate(positions_linewraps, state_position)
+            next_linewrap_position, state = iter
+            next_linewrap_position > scanned_position + textelement_length && break
+            # whitespace in current textelement
+            whitespace_position = next_linewrap_position - scanned_position
+            textelement_string = textelement_string[1:whitespace_position-1] * "\n" *
+                             textelement_string[whitespace_position+1:end]
+            textelement_length = length(textelement_string)
+            iter = iterate(linewrap_positions, state)
         end
 
-        scanned_length += element_length
-        string = string * element_string
+        scanned_position += textelement_length
+        string = string * textelement_string
 
-        element_fontperchar = Makie.attribute_per_char(element_string, element_ft_font)
-        element_textsizeperchar = Makie.attribute_per_char(element_string, rscale)
+        textelement_fontperchar = Makie.attribute_per_char(textelement_string, textelement_ft_font)
+        textelement_textsizeperchar = Makie.attribute_per_char(textelement_string, rscale)
 
-        append!(fontperchar, element_fontperchar)
-        append!(textsizeperchar, element_textsizeperchar)
+        append!(fontperchar, textelement_fontperchar)
+        append!(textsizeperchar, textelement_textsizeperchar)
     end
-
-    # println(string)
 
     glyphcollection = Makie.glyph_collection(string, fontperchar, textsizeperchar, align[1],
         align[2], lineheight, justification, rot, color, strokecolor, strokewidth)
