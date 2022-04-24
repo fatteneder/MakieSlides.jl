@@ -5,6 +5,7 @@ using GLMakie
 using CairoMakie
 using Markdown
 using Makie
+using Printf
 import Cairo
 
 
@@ -19,6 +20,7 @@ export formattedtext, formattedtext!
 
 include("formattedtext.jl")
 include("formattedlabel.jl")
+include("formattedlist.jl")
 include("markdownbox.jl")
 
 

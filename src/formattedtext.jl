@@ -24,7 +24,7 @@ Plots `Markdown` formatted text.
         markerspace = :pixel,
         offset = (0.0, 0.0),
         inspectable = theme(scene, :inspectable),
-        maxwidth = 0
+        maxwidth = 0.0
     )
 end
 
@@ -99,7 +99,8 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
     default_glyphs   = glyphcollection[].glyphs
     default_glyphbbs = gl_bboxes(glyphcollection[])
     on(plot.maxwidth) do maxwidth
-        linewrap_positions[] = estimate_linewrap_positions(default_glyphs, default_glyphbbs, maxwidth)
+        linewrap_positions[] = estimate_linewrap_positions(default_glyphs, default_glyphbbs,
+                                                           maxwidth)
     end
 
     text!(plot, glyphcollection; plot.attributes...)
@@ -188,7 +189,7 @@ function layout_formatted_text(
         font, align, rotation, justification, lineheight, color, strokecolor, strokewidth
     )
 
-    print("Formatting text: ")
+    # print("Formatting text: ")
 
     rscale = to_textsize(textsize)
     rot = to_rotation(rotation)
@@ -209,7 +210,8 @@ function layout_formatted_text(
         elseif element isa String
             element, to_font(font)
         else
-            error("Cannot handle paragraph element '$(element)' which is of type '$(typeof(element))'")
+            error("Cannot handle paragraph element '$(element)' which " *
+                  "is of type '$(typeof(element))'")
         end
 
         element_length = length(element_string)
@@ -218,7 +220,8 @@ function layout_formatted_text(
             next_position, state_position = iter
             next_position > scanned_length + element_length && break
             whitespace_position = next_position - scanned_length + 1
-            element_string = element_string[1:whitespace_position-1] * "\n" * element_string[whitespace_position+1:end]
+            element_string = element_string[1:whitespace_position-1] * "\n" *
+                             element_string[whitespace_position+1:end]
             element_length = length(element_string)
             iter = iterate(positions_linewraps, state_position)
         end
@@ -233,7 +236,7 @@ function layout_formatted_text(
         append!(textsizeperchar, element_textsizeperchar)
     end
 
-    display(string)
+    # println(string)
 
     glyphcollection = Makie.glyph_collection(string, fontperchar, textsizeperchar, align[1],
         align[2], lineheight, justification, rot, color, strokecolor, strokewidth)

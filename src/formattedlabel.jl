@@ -21,6 +21,9 @@ import Makie.MakieLayout: @Layoutable, layoutable, get_topscene,
 
 
 # from src/makielayout/types.jl
+# note: @Layoutable cannot be used to define parameteric layoutables, 
+# e.g. @Layoutable FormattedLabel{Markdown.Paragraph} does not work ...
+# I think the macro could be adapted easily, but do we really need it?
 @Layoutable FormattedLabel
 
 
@@ -72,6 +75,7 @@ function default_attributes(::Type{FormattedLabel}, scene)
     end
     (attributes = attrs, documentation = docdict, defaults = defaultdict)
 end
+
 
 @doc """
 FormattedLabel has the following attributes:
@@ -130,7 +134,7 @@ function layoutable(::Type{FormattedLabel}, fig_or_scene; bbox = nothing, kwargs
         textbb = Rect2f(boundingbox(fmttxt))
         tw, th = width(textbb), height(textbb)
         w, h = width(bbox), height(bbox)
-        println("Dimensions: $w, $h, $th")
+        # println("Dimensions: $w, $h, $th")
         box, boy = bbox.origin
 
         # position text
@@ -151,22 +155,24 @@ function layoutable(::Type{FormattedLabel}, fig_or_scene; bbox = nothing, kwargs
             0
         end
         textpos[] = Point3f(tx, ty, 0)
-        println("Text position: $(textpos[])")
+        # println("Text position: $(textpos[])")
 
         # trigger text wrapping
-        println("       $tw, $w")
+        # println("       $tw, $w")
         fmttxt.maxwidth[] = w
 
+        # two bugs
+        # - box height of first FormattedLabel can be wrong if text is larger than 100 initially
+        # - sometimes, box height does not match exactly formatted text height
+
         if h != th
-            println("   Line height: $h -> $th")
+            # println("   Line height: $h -> $th")
             layoutobservables.autosize[] = (nothing, th)
             # layoutobservables.computedbbox[] = Rect2f(box, boy, w + padding[1] + padding[2], th)
             return
         end
     end
 
-    lt = FormattedLabel(fig_or_scene, layoutobservables, attrs, 
+    FormattedLabel(fig_or_scene, layoutobservables, attrs, 
                         Dict(:formattedtext => fmttxt, :background => bg))
-
-    lt
 end
