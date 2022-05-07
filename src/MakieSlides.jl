@@ -9,8 +9,8 @@ import Cairo
 
 
 # Makie internal dependencies of formattedtext.jl
-# import Makie: NativeFont, gl_bboxes
-# import MakieCore: automatic
+import Makie: NativeFont, gl_bboxes
+import MakieCore: automatic
 
 
 # Makie internal dependencies of formattedlabel.jl, formattedlist, markdownbox.jl
@@ -23,11 +23,11 @@ import Cairo
 
 # export Slide, slidetext!, slideheader!, slidefooter!, 
 export Presentation, add_slide!, reset!, save
-# export formattedtext, formattedtext!
+export formattedtext, formattedtext!
 # export FormattedLabel, FormattedList, MarkdownBox
 
 
-# include("formattedtext.jl")
+include("formattedtext.jl")
 # include("formattedlabel.jl")
 # include("formattedlist.jl")
 # include("markdownbox.jl")
@@ -198,69 +198,6 @@ end
 
 
 #=
-struct Slide
-  figure
-  panes::Dict
-end
-
-
-function Slide(; hide_decorations::Bool=true, 
-                 title="",
-                 aspect=(16,9))
-
-  @assert all(aspect .> 0)
-
-  # TODO 
-  # 1. Right now the content has a fixed size. If we resize the window below that size
-  # then the content gets cropped. Can we make it such that instead of cropping we resize
-  # it and maintain the aspect ratio?
-  # 2. Figure out how to maintain the figure size between different slides. Can this be done with
-  # observables?
-  # 3. We deactivated zooming for indiviual axis. Can be enable a global zooming that adjusts
-  # the figure resolution? Might also be useful for 1.
-
-  ratio = aspect[1] / aspect[2]
-  width = 1400
-  height = width / ratio
-  resolution = (width*1.05,height*1.05) # add some border outlines
-  figure = Figure(resolution=resolution)
-
-  axis_options = (; xzoomlock=true, xpanlock=true, xrectzoom=false,
-                    yzoomlock=true, ypanlock=true, yrectzoom=false)
-  panes = Dict(:header  => Axis(figure[1,1]; axis_options...),
-               :content => Axis(figure[2,1]; axis_options...),
-               :footer  => Axis(figure[3,1]; axis_options...))
-
-  linkxaxes!(panes[:content], panes[:header])
-  linkxaxes!(panes[:content], panes[:footer])
-  colsize!(figure.layout, 1, Fixed(width))
-
-  ratio_header = 1/10
-  ratio_footer = 1/10
-  rowsize!(figure.layout, 1, Fixed(height * ratio_header))
-  rowsize!(figure.layout, 2, Fixed(height * (1 - ratio_header - ratio_footer)))
-  rowsize!(figure.layout, 3, Fixed(height * ratio_header))
-
-  pane_aspects = Dict(:header => (aspect[1], 1+aspect[2] * ratio_header),
-                      :content =>(aspect[1], 1+aspect[2] * (1 - ratio_header - ratio_footer)),
-                      :footer => (aspect[1], 1+aspect[2] * ratio_footer))
-
-  for (k, pane) in pairs(panes)
-    asp = pane_aspects[k]
-    limits!(pane, 1, asp[1], 1, asp[2])
-    if hide_decorations
-      hidedecorations!(pane, grid=true)
-      hidespines!(pane)
-    end
-  end
-
-  rowgap!(figure.layout, 0)
-  colgap!(figure.layout, 0)
-
-  return Slide(figure, panes)
-end
-
-
 function slidetext!(slide, text)
   pane = slide.panes[:content]
   rect = pane.targetlimits[]
