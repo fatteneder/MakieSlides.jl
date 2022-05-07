@@ -14,7 +14,8 @@ import MakieCore: automatic
 
 
 # Makie internal dependencies of formattedlabel.jl, formattedlist, markdownbox.jl
-# using Makie.MakieLayout
+using Makie.MakieLayout
+import Makie.MakieLayout: @Block, inherit, round_to_IRect2D, initialize_block!
 # import Makie.MakieLayout: @Layoutable, layoutable, get_topscene,
 #                           @documented_attributes, lift_parent_attribute, docvarstring,
 #                           subtheme, LayoutObservables, round_to_IRect2D
@@ -24,11 +25,12 @@ import MakieCore: automatic
 # export Slide, slidetext!, slideheader!, slidefooter!, 
 export Presentation, add_slide!, reset!, save
 export formattedtext, formattedtext!
+export FormattedLabel
 # export FormattedLabel, FormattedList, MarkdownBox
 
 
 include("formattedtext.jl")
-# include("formattedlabel.jl")
+include("formattedlabel.jl")
 # include("formattedlist.jl")
 # include("markdownbox.jl")
 

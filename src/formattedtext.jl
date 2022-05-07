@@ -96,6 +96,7 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
     default_glyphs   = glyphcollection[].glyphs
     default_glyphbbs = gl_bboxes(glyphcollection[])
     on(plot.maxwidth) do maxwidth
+        @info maxwidth
         linewrap_positions[] = estimate_linewrap_positions(default_glyphs, default_glyphbbs,
                                                            maxwidth)
     end
