@@ -10,7 +10,7 @@ import Cairo
 
 
 # Makie internal dependencies of formattedtext.jl
-import Makie: NativeFont
+import Makie: NativeFont, gl_bboxes
 import MakieCore: automatic
 
 

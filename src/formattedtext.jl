@@ -1,6 +1,3 @@
-import Makie: gl_bboxes
-
-
 """
     text(text::Markdown.MD)
 
@@ -129,7 +126,7 @@ function estimate_linewrap_positions(glyphs, glyphbbs, maxwidth)
             if whitespace_pos == pos
                 # failed to find any whitespace and exact wrapping has now failed
                 # we search forwards for the next whitespace
-                # this will yield overly height boundingboxes -- is that an issue?
+                # this will yield overly heigh boundingboxes -- is that an issue?
                 while whitespace_pos <= N
                     if glyphs[whitespace_pos] == ' '; break; end
                     whitespace_pos += 1

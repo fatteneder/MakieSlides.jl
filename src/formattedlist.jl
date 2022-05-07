@@ -95,34 +95,61 @@ function layoutable(::Type{FormattedList}, fig_or_scene; bbox = nothing, kwargs.
     end
 
     item_symbol = itemization_symbol[]
-    bullet_found = match(r"^\s*(\*|\+|-)", item_symbol)
-    item_symbol = if !isnothing(bullet_found)
-        # escape the bullet
-        offset = bullet_found.offset
-        string(item_symbol[1:offset-1], '\\', item_symbol[offset:end])
-    end
+    # bullet_match = match(r"^\s*(\*|\+|-)", item_symbol)
+    # item_symbol = if !isnothing(bullet_match)
+    #     # escape bullet for Markdown.parse
+    #     offset = bullet_match.offset
+    #     string(item_symbol[1:offset-1], '\\', item_symbol[offset:end])
+    # end
 
     list = md_list[].content[]
     items, ordered = list.items, list.ordered
-    list_label = if ordered < 0
+    symbol = if ordered < 0
         i -> item_symbol
     else
         format_enum_pttrn = Printf.Format(enumeration_pattern[])
-        i -> Printf.format(format_enum_pttrn, i)
+        i -> Printf.format(format_enum_pttrn, i+ordered-1)
     end
-    n_items = length(items)
-    gridlayout = GridLayout(n_items+1, 2)
-    for (idx, item) in enumerate(items)
-        gridlayout[idx, 1] = FormattedLabel(fig_or_scene, text=list_label(idx),
-                                            halign=:left, valign=:top)
-        gridlayout[idx, 2] = FormattedLabel(fig_or_scene, text=first(item),
-                                            halign=:left, valign=:top)
-    end
-    gridlayout[end, 1] = Box(fig_or_scene, tellheight=false)
-    gridlayout[end, 2] = Box(fig_or_scene, tellheight=false)
 
-    rowgap!(gridlayout, 0)
-    colgap!(gridlayout, 0)
+    n_items = length(items)
+    gridlayout = GridLayout(n_items+1, 2) # + 1 for fill box at the end
+    symbol_labels = Label[]
+    for (idx, item) in enumerate(items)
+        # fmtlbl = FormattedLabel(fig_or_scene, text=symbol(idx), halign=:left, valign=:top)
+        # using Label for now, because FormattedLabel promotes strings to Markdown.MD and
+        # symbols like "1." would be parsed as Markdown.Lists, but the underlyinig 
+        # formattedtext only works with Markdown.Paragraphs
+        lbl = Label(fig_or_scene, text=symbol(idx), halign=:left, valign=:top)
+        push!(symbol_labels, lbl)
+        gridlayout[idx, 1] = lbl
+        gridlayout[idx, 2] = FormattedLabel(fig_or_scene, text=first(item),
+                                            halign=:left, valign=:top, tellwidth=false)
+    end
+
+    label_fillbox = Box(fig_or_scene, width=Fixed(1000.0 #= will be adjusted below=#))
+    text_fillbox  = Box(fig_or_scene)
+    gridlayout[end, 1] = label_fillbox
+    gridlayout[end, 2] = text_fillbox
+
+    # fix width of label_fillbox to maximum width of list symbols
+    on(label_fillbox.layoutobservables.computedbbox) do bbox
+        current_w = label_fillbox.width[].x
+        max_w = 0.0
+        for lbl in symbol_labels
+            textbb = Rect2f(boundingbox(lbl.elements[:text]))
+            tw = width(textbb)
+            if max_w < tw; max_w = tw; end
+        end
+        if max_w != current_w
+            label_fillbox.width[] = Fixed(max_w)
+        end
+    end
+
+    label_fillbox.layoutobservables.suggestedbbox[] = 
+        label_fillbox.layoutobservables.suggestedbbox[]
+
+    rowgap!(gridlayout, 5)
+    colgap!(gridlayout, 5)
 
     FormattedList(fig_or_scene, layoutobservables, attrs, Dict(:gridlayout => gridlayout))
 end

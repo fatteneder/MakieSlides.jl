@@ -82,7 +82,7 @@ function layoutable(::Type{FormattedLabel}, fig_or_scene; bbox = nothing, kwargs
 
     @extract attrs (text, textsize, font, color, visible, halign, valign,
                     rotation, padding, strokecolor, strokewidth, strokevisible,
-                    backgroundcolor, backgroundvisible)#, tellwidth, tellheight)
+                    backgroundcolor, backgroundvisible)
 
     layoutobservables = LayoutObservables(attrs.width, attrs.height, 
                                           attrs.tellwidth, attrs.tellheight, halign, valign, 
