@@ -24,12 +24,13 @@ using Makie.GridLayoutBase
 
 export Slide, slidetext!, slideheader!, slidefooter!, Presentation, save
 export formattedtext, formattedtext!
-export FormattedLabel, FormattedList, MarkdownBox
+export FormattedLabel, FormattedList, FormattedTable, MarkdownBox
 
 
 include("formattedtext.jl")
 include("formattedlabel.jl")
 include("formattedlist.jl")
+include("formattedtable.jl")
 include("markdownbox.jl")
 
 
