@@ -19,8 +19,10 @@ function default_attributes(::Type{FormattedLabel}, scene)
         textsize = lift_parent_attribute(scene, :fontsize, 16f0)
         "The font family of the text."
         font = lift_parent_attribute(scene, :font, "DejaVu Sans")
-        "The justification of the text (:left, :right, :center)."
-        justification = :left
+        "The veritcal justification of the text (:top, :bottom, :center)."
+        vjustify = :top
+        "The horizontal justification of the text (:left, :right, :center)."
+        hjustify = :left
         "The lineheight multiplier for the text."
         lineheight = 1.0
         "The vertical alignment of the text in its suggested boundingbox"
@@ -82,7 +84,7 @@ function layoutable(::Type{FormattedLabel}, fig_or_scene; bbox = nothing, kwargs
 
     @extract attrs (text, textsize, font, color, visible, halign, valign,
                     rotation, padding, strokecolor, strokewidth, strokevisible,
-                    backgroundcolor, backgroundvisible)
+                    backgroundcolor, backgroundvisible, hjustify, vjustify)
 
     layoutobservables = LayoutObservables(attrs.width, attrs.height, 
                                           attrs.tellwidth, attrs.tellheight, halign, valign, 
@@ -92,41 +94,42 @@ function layoutable(::Type{FormattedLabel}, fig_or_scene; bbox = nothing, kwargs
 
     # the text
     fmttxt = formattedtext!(topscene, text, position = textpos, textsize = textsize, 
-        font = font, color = color, visible = visible, align = (:left, :top), 
-        rotation = rotation, markerspace = :data, justification = attrs.justification,
+        font = font, color = color, visible = visible, align = (hjustify,vjustify),
+        rotation = rotation, markerspace = :data, justification = hjustify,
         lineheight = attrs.lineheight, inspectable = false)
 
-    onany(layoutobservables.computedbbox, padding, halign, valign) do bbox, padding, halign, valign
+    onany(layoutobservables.computedbbox, padding, halign, valign, hjustify, vjustify) do bbox,
+        padding, halign, valign, hjustify, vjustify
 
         textbb = Rect2f(boundingbox(fmttxt))
         tw, th = width(textbb), height(textbb)
-        w, h = width(bbox), height(bbox)
+        w = width(bbox)
+        h = height(bbox)
         box, boy = bbox.origin
 
         # position text
-        tx = box + padding[1]
-        isnothing(tx) && error()
-        tx += if halign === :right
-            w
-        elseif halign === :center
-            0.5 * w
-        elseif halign === :left
-            0
+        tx = box
+        tx += if hjustify === :left
+            padding[1]
+        elseif hjustify === :center
+            w/2
+        elseif hjustify === :right
+            w - padding[2]
         end
-        ty = boy + padding[3]
-        ty += if valign === :top
-            h
-        elseif valign === :center
-            0.5 * h
-        elseif valign === :bottom
-            0
+        ty = boy
+        ty += if vjustify === :top
+            h - padding[3]
+        elseif vjustify === :center
+            h/2
+        elseif vjustify === :bottom
+            padding[4]
         end
-
         textpos[] = Point3f(tx, ty, 0)
 
-        fmttxt.maxwidth[] = w
-        if h != th
-            layoutobservables.autosize[] = (nothing, th)
+        fmttxt.maxwidth[] = w - padding[1] - padding[2]
+
+        if !isapprox(h, th + padding[3] + padding[4])
+            layoutobservables.autosize[] = (nothing, th + padding[3] + padding[4])
         end
     end
 
