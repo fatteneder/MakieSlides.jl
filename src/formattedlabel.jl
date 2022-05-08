@@ -91,7 +91,7 @@ function initialize_block!(l::FormattedLabel)
     # the text
     fmttxt = formattedtext!(
         topscene, l.text, position = textpos, textsize = l.textsize, 
-        font = l.font, color = l.color, visible = l.visible, align = (:left, :top), 
+        font = l.font, color = l.color, visible = l.visible, align = (:center, :center), 
         rotation = l.rotation, markerspace = :data, justification = l.justification,
         lineheight = l.lineheight, inspectable = false
     )
@@ -110,8 +110,8 @@ function initialize_block!(l::FormattedLabel)
         box = bbox.origin[1]
         boy = bbox.origin[2]
 
-        tx = box + padding[1]# + 0.5 * tw
-        ty = boy + padding[3] + th
+        tx = box + padding[1] + 0.5 * tw
+        ty = boy + padding[3] + 0.5 * th
 
         textpos[] = Point3f(tx, ty, 0)
         if fmttxt.maxwidth[] != tw

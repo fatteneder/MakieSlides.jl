@@ -40,22 +40,6 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.MD}})
     # - literals (`...`) and code blocks (```...```) are both wrapped as Markdown.Code.
     # It think the way to distinguish them is to check whether one appears within the contents
     # of a Markdown.Paragraph (=^= literal) or Markdown.MD(=^= code block).
-    # In the following example the literal is wrapped into a paragraph which is inside
-    # a List object, so it seems to work:
-    # md"""
-    # - item with a `literal`
-    # - another item
-    # """
-    #
-    # But what about
-    # md"""
-    # - item 
-    # ```
-    # nested code block here?
-    # ```
-    # """
-    # Markdown.jl interprets this as two separate objects, namely a Markdown.List and a
-    # Markdown.Code, so nothing to worry here.
 
     markdown = plot[1][]
     all_elements = Any[]
@@ -84,6 +68,7 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
             plot.rotation, plot.justification, plot.lineheight,
             plot.color, plot.strokecolor, plot.strokewidth, linewrap_positions) do str,
                 ts, f, al, rot, jus, lh, col, scol, swi, positions
+
         ts = to_textsize(ts)
         f = to_font(f)
         rot = to_rotation(rot)
@@ -96,9 +81,30 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
     default_glyphs   = glyphcollection[].glyphs
     default_glyphbbs = gl_bboxes(glyphcollection[])
     on(plot.maxwidth) do maxwidth
-        @info maxwidth
-        linewrap_positions[] = estimate_linewrap_positions(default_glyphs, default_glyphbbs,
-                                                           maxwidth)
+
+        # split up glyphs and bboxes into blocks corresponding to the parapgrah blocks that
+        # are separated by empty lines
+        splits = [ firstindex(default_glyphs),
+                   findall(g -> g == '\n', default_glyphs)...,
+                   lastindex(default_glyphs) ]
+        s1, s2 = @view(splits[1:end-1]), @view(splits[2:end])
+        glyph_blocks     = [ view( default_glyphs,
+                                  (n == 1 ? i1 : i1+1):(n == length(splits)-1 ? i2 : i2-1)
+                                 )
+                             for (n, (i1, i2)) in enumerate(zip(s1, s2)) ]
+        glyphbbox_blocks = [ view( default_glyphbbs,
+                                  (n == 1 ? i1 : i1+1):(n == length(splits)-1 ? i2 : i2-1)
+                                 )
+                            for (n, (i1, i2)) in enumerate(zip(s1, s2)) ]
+        linewrap_positions_per_block = estimate_linewrap_positions.(glyph_blocks, 
+                                                                    glyphbbox_blocks,
+                                                                    maxwidth)
+        # add index offsets
+        for (idx, offset) in enumerate(s1)
+            linewrap_positions_per_block[idx] .+= offset
+        end
+
+        linewrap_positions[] = vcat(linewrap_positions_per_block...)
     end
 
     plot.maxwidth[] = plot.maxwidth[]
@@ -110,7 +116,8 @@ end
 
 
 function estimate_linewrap_positions(glyphs, glyphbbs, maxwidth)
-    maxwidth <= 0 && return Int64[]
+    fullwidth = sum(width.(glyphbbs))
+    (maxwidth <= 0 || maxwidth > fullwidth) && return Int64[]
     N = length(glyphs)
     @assert N == length(glyphbbs)
     positions = Int64[]
