@@ -63,7 +63,8 @@ end
 
 add_slide!(pres) do fig
     Label(fig[1, 1], "Example List", textsize = 40, tellwidth = false)
-    FormattedList(fig[2, 1], md"""
+    Box(fig[2, 1], visible = false) # Spacer
+    FormattedList(fig[3, 1], md"""
     - First Entry
 
     - Second Entry
@@ -71,6 +72,17 @@ add_slide!(pres) do fig
     - Third Entry
     """)
 end
+
+# TODO
+# add_slide!(pres) do fig
+#     Label(fig[1, 1], "Example Table", textsize = 40, tellwidth = false)
+#     FormattedTable(fig[2, 1], md"""
+#         | Column One | Column Two | Column Three |
+#         |:---------- | ---------- |:------------:|
+#         | Row 1      | Column 2   |              |
+#         | Row 2      | Row 2      | Column 3     |
+#     """, tellwidth = false)
+# end
 
 # Move to first slide
 reset!(pres)

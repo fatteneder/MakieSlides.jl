@@ -3,12 +3,12 @@
 
 
 # from src/makielayout/types.jl
-@Layoutable FormattedTable
-
-
-# from Makie/src/makielayout/default_attributes.jl
-function default_attributes(::Type{FormattedTable}, scene)
-    attrs, docdict, defaultdict = @documented_attributes begin
+@Block FormattedTable begin
+    @forwarded_layout
+    # sliders::Vector{Slider}
+    # valuelabels::Vector{Label}
+    # labels::Vector{Label}
+    @attributes begin
         "The displayed markdown list."
         md_table = md"""
             | Column One | Column Two | Column Three |
@@ -17,23 +17,23 @@ function default_attributes(::Type{FormattedTable}, scene)
             | Row 2      | Row 2      | Column 3     |
         """
         "Controls if the text is visible."
-        visible = true
+        visible::Bool = true
         "The color of the text."
-        color = lift_parent_attribute(scene, :textcolor, :black)
+        color::RGBAf = inherit(scene, :textcolor, :black)
         "The font size of the text."
-        textsize = lift_parent_attribute(scene, :fontsize, 16f0)
+        textsize::Float32 = inherit(scene, :fontsize, 16f0)
         "The font family of the text."
-        font = lift_parent_attribute(scene, :font, "DejaVu Sans")
+        font::Makie.FreeTypeAbstraction.FTFont = inherit(scene, :font, "DejaVu Sans")
         "The justification of the text (:left, :right, :center)."
         justification = :left
         "The lineheight multiplier for the text."
-        lineheight = 1.0
+        lineheight::Float32 = 1.0
         "The vertical alignment of the text in its suggested boundingbox"
         valign = :top
         "The horizontal alignment of the text in its suggested boundingbox"
         halign = :left
         "The counterclockwise rotation of the text in radians."
-        rotation = 0f0
+        rotation::Float32 = 0f0
         "The extra space added to the sides of the text boundingbox."
         padding = (0f0, 0f0, 0f0, 0f0)
         "The height setting of the text."
@@ -41,71 +41,73 @@ function default_attributes(::Type{FormattedTable}, scene)
         "The width setting of the text."
         width = Auto()
         "Controls if the parent layout can adjust to this element's width"
-        tellwidth = false
+        tellwidth::Bool = false
         "Controls if the parent layout can adjust to this element's height"
-        tellheight = true
+        tellheight::Bool = true
         "The align mode of the text in its parent GridLayout."
         alignmode = Inside()
         "Controls if the background is visible."
-        backgroundvisible = true
+        backgroundvisible::Bool = true
         "The color of the background. "
-        backgroundcolor = RGBf(0.9, 0.9, 0.9)
+        backgroundcolor::RGBAf = RGBf(0.9, 0.9, 0.9)
         "The line width of the rectangle's border."
-        strokewidth = 1f0
+        strokewidth::Float32 = 1f0
         "Controls if the border of the rectangle is visible."
-        strokevisible = true
+        strokevisible::Bool = true
         "The color of the border."
-        strokecolor = RGBf(0, 0, 0)
+        strokecolor::RGBAf = RGBf(0, 0, 0)
         "Controls if table's column width should be adjusted to their contents width"
         column_distribution = :equal
         "The vertical alignment of the cell's content"
         valign_cells = :center
     end
-    (attributes = attrs, documentation = docdict, defaults = defaultdict)
 end
 
 
-@doc """
-FormattedTable has the following attributes:
+# @doc """
+# FormattedTable has the following attributes:
 
-$(let
-    _, docs, defaults = default_attributes(FormattedTable, nothing)
-    docvarstring(docs, defaults)
-end)
-"""
-FormattedTable
+# $(let
+#     _, docs, defaults = default_attributes(FormattedTable, nothing)
+#     docvarstring(docs, defaults)
+# end)
+# """
+# FormattedTable
+FormattedTable(x, text; kwargs...) = FormattedTable(x, md_table = text; kwargs...)
 
 
 const MARKDOWN_TO_MAKIE_HALIGNS = Dict(:l => :left, :c => :center, :r => :right)
 
 
-function layoutable(::Type{FormattedTable}, fig_or_scene; bbox = nothing, kwargs...)
+function initialize_block!(l::FormattedTable)
+    blockscene = l.blockscene
+    layoutobservables = l.layoutobservables
 
-    topscene = get_topscene(fig_or_scene)
-    default_attrs = default_attributes(FormattedTable, topscene).attributes
-    theme_attrs = subtheme(topscene, :FormattedTable)
-    attrs = merge!(merge!(Attributes(kwargs), theme_attrs), default_attrs)
+    # blockscene = get_blockscene(fig_or_scene)
+    # default_attrs = default_attributes(FormattedTable, blockscene).attributes
+    # theme_attrs = subtheme(blockscene, :FormattedTable)
+    # attrs = merge!(merge!(Attributes(kwargs), theme_attrs), default_attrs)
 
-    @extract attrs (md_table, textsize, font, color, visible,
-                    rotation, padding, strokecolor, strokewidth, strokevisible,
-                    backgroundcolor, backgroundvisible, tellwidth, tellheight)
+    # @extract attrs (md_table, textsize, font, color, visible,
+    #                 rotation, padding, strokecolor, strokewidth, strokevisible,
+    #                 backgroundcolor, backgroundvisible, tellwidth, tellheight)
 
-    layoutobservables = LayoutObservables(attrs.width, attrs.height, attrs.tellwidth, 
-        attrs.tellheight, attrs.halign, attrs.valign, attrs.alignmode; suggestedbbox = bbox)
+    # layoutobservables = LayoutObservables(attrs.width, attrs.height, attrs.tellwidth, 
+    #     attrs.tellheight, attrs.halign, attrs.valign, attrs.alignmode; suggestedbbox = bbox)
 
-    strokecolor_with_visibility = lift(strokecolor, strokevisible) do col, vis
+    strokecolor_with_visibility = lift(l.strokecolor, l.strokevisible) do col, vis
         vis ? col : RGBAf(0, 0, 0, 0)
     end
 
-    table = md_table[].content[1]
-    halign_cells, rows = map(a -> MARKDOWN_TO_MAKIE_HALIGNS[a], table.align), table.rows
+    table = l.md_table[].content[1]
+    halign_cells = map(a -> MARKDOWN_TO_MAKIE_HALIGNS[a], table.align)
+    rows = table.rows
     n_rows, n_cols = length(rows), length(halign_cells)
-    gridlayout = GridLayout(n_rows+1, n_cols) # + 1 for fill box at the end
     for (i, row) in enumerate(rows)
         for (j, (cell, halign)) in enumerate(zip(row, halign_cells))
             text = string(cell...)
-            gridlayout[i, j] = FormattedLabel(fig_or_scene, text=text,
-                                              halign=halign, valign=attrs.valign_cells)
+            l.layout[i, j] = FormattedLabel(blockscene, text=text,
+                                              halign=l.halign, valign=l.valign_cells)
         end
     end
     #
@@ -126,10 +128,11 @@ function layoutable(::Type{FormattedTable}, fig_or_scene; bbox = nothing, kwargs
     # label_fillbox.layoutobservables.suggestedbbox[] =
     #     label_fillbox.layoutobservables.suggestedbbox[]
     #
-    rowgap!(gridlayout, 5)
-    colgap!(gridlayout, 5)
+    rowgap!(l.layout, 5)
+    colgap!(l.layout, 5)
 
-    FormattedTable(fig_or_scene, layoutobservables, attrs, Dict(:gridlayout => gridlayout))
+    # FormattedTable(fig_or_scene, layoutobservables, attrs, Dict(:l.layout => l.layout))
+    return l
 end
 
 
@@ -138,12 +141,12 @@ end
 # end
 
 
-function Base.setindex!(gp::GridPosition, fmtlist::FormattedTable)
-    gp.layout[gp.span.rows, gp.span.cols, gp.side] = fmtlist.elements[:gridlayout]
-end
+# function Base.setindex!(gp::GridPosition, fmtlist::FormattedTable)
+#     gp.layout[gp.span.rows, gp.span.cols, gp.side] = fmtlist.elements[:l.layout]
+# end
 
 
-function Base.setindex!(fig::Figure, fmtlist::FormattedTable, rows, cols, side = GridLayoutBase.Inner())
-    fig.layout[rows, cols, side] = fmtlist.elements[:gridlayout]
-    fmtlist
-end
+# function Base.setindex!(fig::Figure, fmtlist::FormattedTable, rows, cols, side = GridLayoutBase.Inner())
+#     fig.layout[rows, cols, side] = fmtlist.elements[:l.layout]
+#     fmtlist
+# end

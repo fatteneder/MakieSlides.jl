@@ -70,11 +70,11 @@ FormattedLabel(x, text; kwargs...) = FormattedLabel(x, text = text; kwargs...)
 
 
 function initialize_block!(l::FormattedLabel)
-    topscene = l.blockscene
+    blockscene = l.blockscene
     layoutobservables = l.layoutobservables
 
-    # default_attrs = default_attributes(FormattedLabel, topscene).attributes
-    # theme_attrs = subtheme(topscene, :FormattedLabel)
+    # default_attrs = default_attributes(FormattedLabel, blockscene).attributes
+    # theme_attrs = subtheme(blockscene, :FormattedLabel)
     # attrs = merge!(merge!(Attributes(kwargs), theme_attrs), default_attrs)
 
     # @extract attrs (text, textsize, font, color, visible, halign, valign,
@@ -90,7 +90,7 @@ function initialize_block!(l::FormattedLabel)
 
     # the text
     fmttxt = formattedtext!(
-        topscene, l.text, position = textpos, textsize = l.textsize, 
+        blockscene, l.text, position = textpos, textsize = l.textsize, 
         font = l.font, color = l.color, visible = l.visible, align = (:center, :center), 
         rotation = l.rotation, markerspace = :data, justification = l.justification,
         lineheight = l.lineheight, inspectable = false
@@ -170,7 +170,7 @@ function initialize_block!(l::FormattedLabel)
     end
 
     # TODO: simplify this to lines and move backgroundcolor to blockscene?
-    bg = poly!(topscene, ibbox, color = l.backgroundcolor, visible = l.backgroundvisible,
+    bg = poly!(blockscene, ibbox, color = l.backgroundcolor, visible = l.backgroundvisible,
                strokecolor = strokecolor_with_visibility, strokewidth = l.strokewidth,
                inspectable = false)
     translate!(bg, 0, 0, -10) # move behind text
