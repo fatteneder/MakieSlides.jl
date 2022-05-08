@@ -91,8 +91,8 @@ function initialize_block!(l::FormattedList)
                                             halign=:left, valign=:top, tellwidth=false)
     end
 
-    label_fillbox = Box(blockscene, width=Fixed(1000.0 #= will be adjusted below=#))
-    text_fillbox  = Box(blockscene)
+    label_fillbox = Box(blockscene, width=Fixed(1000.0 #= will be adjusted below=#), visible=false)
+    text_fillbox  = Box(blockscene, visible=false)
     l.layout[length(items)+1, 1] = label_fillbox
     l.layout[length(items)+1, 2] = text_fillbox
 

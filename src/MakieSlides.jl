@@ -227,7 +227,7 @@ end
 function save(name, p::Presentation, idx::Int)
     CairoMakie.activate!()
   
-    set_slide_idx!(p, i)
+    set_slide_idx!(p, idx)
     scene = p.parent.scene
     screen = CairoMakie.CairoScreen(scene, name, :pdf)
     CairoMakie.cairo_draw(screen, scene)
