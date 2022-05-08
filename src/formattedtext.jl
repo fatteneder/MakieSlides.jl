@@ -101,7 +101,7 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
                                                                     maxwidth)
         # add index offsets
         for (idx, offset) in enumerate(s1)
-            linewrap_positions_per_block[idx] .+= offset
+            linewrap_positions_per_block[idx] .+= idx == 1 ? 0 : offset
         end
 
         linewrap_positions[] = vcat(linewrap_positions_per_block...)
@@ -126,7 +126,7 @@ function estimate_linewrap_positions(glyphs, glyphbbs, maxwidth)
         bb = glyphbbs[pos]
         accumulated_width += width(bb)
         if accumulated_width > maxwidth
-            # time to wrap, search backwards for next whitespace
+            # time to wrap, search backwards for first whitespace
             whitespace_pos = pos
             for j = reverse(last_linewrap_pos+1:pos-1)
                 if glyphs[j] == ' '; whitespace_pos = j; break; end
@@ -134,7 +134,7 @@ function estimate_linewrap_positions(glyphs, glyphbbs, maxwidth)
             if whitespace_pos == pos
                 # failed to find any whitespace and exact wrapping has now failed
                 # we search forwards for the next whitespace
-                # this will yield overly heigh boundingboxes -- is that an issue?
+                # this will yield overly high boundingboxes -- is that an issue?
                 while whitespace_pos <= N
                     if glyphs[whitespace_pos] == ' '; break; end
                     whitespace_pos += 1

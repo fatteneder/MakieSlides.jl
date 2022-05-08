@@ -13,3 +13,7 @@ MakieCore = "20f20a25-4f0e-4fdf-b5d1-57303727442b"
 Markdown = "d6f4376e-aef5-505a-96c1-9c027394607a"
 PackageCompiler = "9b87118b-4619-50d2-8e1e-99f35a4d4d9d"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+
+[compat]
+Makie = "0.17"
+julia = "1"
