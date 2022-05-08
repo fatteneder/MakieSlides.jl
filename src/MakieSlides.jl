@@ -26,12 +26,13 @@ import Makie.MakieLayout: @Block, inherit, round_to_IRect2D, initialize_block!
 export Presentation, add_slide!, reset!, save
 export formattedtext, formattedtext!
 export FormattedLabel
-# export FormattedLabel, FormattedList, MarkdownBox
+# export FormattedLabel, FormattedList, FormattedTable, MarkdownBox
 
 
 include("formattedtext.jl")
 include("formattedlabel.jl")
 # include("formattedlist.jl")
+# include("formattedtable.jl")
 # include("markdownbox.jl")
 
 
