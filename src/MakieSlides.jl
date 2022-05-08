@@ -146,6 +146,9 @@ end
 function set_slide_idx!(p::Presentation, i)
     # If we jump randomly we need to start from the last cleared fig and build
     # the current slide up from there.
+    N = length(p.slides)
+    i = i < 1 ? 1 : i
+    i = i > N ? N : i
     if p.idx == i
         return
     elseif p.clear[i]
@@ -166,7 +169,7 @@ end
 Base.display(p::Presentation) = display(p.parent)
 Base.length(p::Presentation) = length(p.slides)
 Base.eachindex(p::Presentation) = 1:length(p.slides)
-next_slide!(p::Presentation) = _set_slide_idx!(p, p.idx + 1)
+next_slide!(p::Presentation) = set_slide_idx!(p, p.idx + 1)
 previous_slide!(p::Presentation) = set_slide_idx!(p, p.idx - 1)
 reset!(p::Presentation) = _set_slide_idx!(p, 1)
 current_index(p::Presentation) = p.idx
