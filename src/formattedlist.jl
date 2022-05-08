@@ -4,6 +4,7 @@
 
 # from src/makielayout/types.jl
 @Block FormattedList begin
+    @forwarded_layout
     @attributes begin
         "The displayed markdown list."
         md_list = md"""
@@ -107,8 +108,6 @@ function initialize_block!(l::FormattedList)
         i -> Printf.format(format_enum_pttrn, i+ordered-1)
     end
 
-    n_items = length(items)
-    gridlayout = GridLayout(n_items+1, 2) # + 1 for fill box at the end
     symbol_labels = Label[]
     for (idx, item) in enumerate(items)
         # fmtlbl = FormattedLabel(fig_or_scene, text=symbol(idx), halign=:left, valign=:top)
@@ -117,15 +116,15 @@ function initialize_block!(l::FormattedList)
         # formattedtext only works with Markdown.Paragraphs
         lbl = Label(blockscene, text=symbol(idx), halign=:left, valign=:top)
         push!(symbol_labels, lbl)
-        gridlayout[idx, 1] = lbl
-        gridlayout[idx, 2] = FormattedLabel(blockscene, text=first(item),
+        l.layout[idx, 1] = lbl
+        l.layout[idx, 2] = FormattedLabel(blockscene, text=first(item),
                                             halign=:left, valign=:top, tellwidth=false)
     end
 
     label_fillbox = Box(blockscene, width=Fixed(1000.0 #= will be adjusted below=#))
     text_fillbox  = Box(blockscene)
-    gridlayout[end, 1] = label_fillbox
-    gridlayout[end, 2] = text_fillbox
+    l.layout[length(items)+1, 1] = label_fillbox
+    l.layout[length(items)+1, 2] = text_fillbox
 
     # fix width of label_fillbox to maximum width of list symbols
     on(label_fillbox.layoutobservables.computedbbox) do bbox
@@ -144,8 +143,8 @@ function initialize_block!(l::FormattedList)
     label_fillbox.layoutobservables.suggestedbbox[] = 
         label_fillbox.layoutobservables.suggestedbbox[]
 
-    rowgap!(gridlayout, 5)
-    colgap!(gridlayout, 5)
+    rowgap!(l.layout, 5)
+    colgap!(l.layout, 5)
 
     return l
 end
@@ -153,12 +152,12 @@ end
 
 # function Base.setindex!(gp::GridPosition, fmtlist::FormattedList)
 #     @info "setindex 1"
-#     gp.layout[gp.span.rows, gp.span.cols, gp.side] = fmtlist.elements[:gridlayout]
+#     gp.layout[gp.span.rows, gp.span.cols, gp.side] = fmtlist.elements[:l.layout]
 # end
 
 
 # function Base.setindex!(fig::Figure, fmtlist::FormattedList, rows, cols, side = GridLayoutBase.Inner())
 #     @info "setindex 2"
-#     fig.layout[rows, cols, side] = fmtlist.elements[:gridlayout]
+#     fig.layout[rows, cols, side] = fmtlist.elements[:l.layout]
 #     fmtlist
 # end
