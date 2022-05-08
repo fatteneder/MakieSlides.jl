@@ -10,7 +10,7 @@ add_slide!(pres) do fig
 end
 
 add_slide!(pres) do fig
-    Label(fig[1, 1:2], "This is a Slide title", textsize = 40, tellwidth = false)
+    Label(fig[1, 1:2], "Example Slide without text wrapping", textsize = 40, tellwidth = false)
     scene = LScene(fig[2, 1], tellwidth = false)
     campixel!(scene)
 
@@ -35,7 +35,7 @@ add_slide!(pres) do fig
 end
 
 add_slide!(pres) do fig
-    Label(fig[1, 1:2], "Another title", textsize = 40, tellwidth = false)
+    Label(fig[1, 1:2], "Using FormattedLabel", textsize = 40, tellwidth = false)
 
     # TODO: This errors because of string indexing
     # FormattedLabel(fig[2, 1], """
@@ -83,6 +83,14 @@ end
 #         | Row 2      | Row 2      | Column 3     |
 #     """, tellwidth = false)
 # end
+
+add_slide!(pres) do fig
+    Label(fig[1, 1], "MarkdownBox Example", textsize = 40, tellwidth=false)
+    Box(fig[2, 1], visible = false) # Spacer
+    MarkdownBox(fig[3, 1], """
+    Some text with **emphasis**
+    """)
+end
 
 # Move to first slide
 reset!(pres)

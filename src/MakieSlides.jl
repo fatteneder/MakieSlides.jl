@@ -16,24 +16,18 @@ import MakieCore: automatic
 # Makie internal dependencies of formattedlabel.jl, formattedlist, markdownbox.jl
 using Makie.MakieLayout
 import Makie.MakieLayout: @Block, inherit, round_to_IRect2D, initialize_block!
-# import Makie.MakieLayout: @Layoutable, layoutable, get_topscene,
-#                           @documented_attributes, lift_parent_attribute, docvarstring,
-#                           subtheme, LayoutObservables, round_to_IRect2D
-# using Makie.GridLayoutBase
-
 
 # export Slide, slidetext!, slideheader!, slidefooter!, 
 export Presentation, add_slide!, reset!, save
 export formattedtext, formattedtext!
-export FormattedLabel, FormattedList, FormattedTable
-# export FormattedLabel, FormattedList, MarkdownBox, FormattedTable
+export FormattedLabel, FormattedList, FormattedTable, MarkdownBox
 
 
 include("formattedtext.jl")
 include("formattedlabel.jl")
 include("formattedlist.jl")
 include("formattedtable.jl")
-# include("markdownbox.jl")
+include("markdownbox.jl")
 
 
 mutable struct Presentation
