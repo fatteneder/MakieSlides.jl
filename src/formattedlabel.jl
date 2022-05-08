@@ -6,7 +6,7 @@
 @Block FormattedLabel begin
     @attributes begin
         "The displayed text string."
-        text::String = "Text"
+        text = "Text"
         "Controls if the text is visible."
         visible::Bool = true
         "The color of the text."

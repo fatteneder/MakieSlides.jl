@@ -25,15 +25,15 @@ import Makie.MakieLayout: @Block, inherit, round_to_IRect2D, initialize_block!
 # export Slide, slidetext!, slideheader!, slidefooter!, 
 export Presentation, add_slide!, reset!, save
 export formattedtext, formattedtext!
-export FormattedLabel
+export FormattedLabel, FormattedList
 # export FormattedLabel, FormattedList, MarkdownBox, FormattedTable
 
 
 include("formattedtext.jl")
 include("formattedlabel.jl")
-# include("formattedlist.jl")
-# include("markdownbox.jl")
+include("formattedlist.jl")
 # include("formattedtable.jl")
+# include("markdownbox.jl")
 
 
 mutable struct Presentation

@@ -1,4 +1,4 @@
-using GLMakie, MakieSlides
+using GLMakie, Markdown, MakieSlides
 
 pres = Presentation(figure_padding = (50, 50, 50, 50))
 display(pres)
@@ -59,6 +59,17 @@ add_slide!(pres) do fig
     FormattedLabel(fig[2, 2], str, halign = :left,  valign = :top, tellheight = false, tellwidth = false)
     FormattedLabel(fig[3, 1], str, tellheight = false, tellwidth = false)
     FormattedLabel(fig[3, 2], str, justification = :right, tellheight = false, tellwidth = false)
+end
+
+add_slide!(pres) do fig
+    Label(fig[1, 1], "Example List", textsize = 40, tellwidth = false)
+    FormattedList(fig[2, 1], md"""
+    - First Entry
+
+    - Second Entry
+
+    - Third Entry
+    """)
 end
 
 # Move to first slide
