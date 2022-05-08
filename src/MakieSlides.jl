@@ -145,7 +145,9 @@ end
 function set_slide_idx!(p::Presentation, i)
     # If we jump randomly we need to start from the last cleared fig and build
     # the current slide up from there.
-    if p.clear[i]
+    if p.idx == i
+        return
+    elseif p.clear[i]
         _set_slide_idx!(p, i)
     else
         idx = i
@@ -166,6 +168,7 @@ Base.eachindex(p::Presentation) = 1:length(p.slides)
 next_slide!(p::Presentation) = _set_slide_idx!(p, p.idx + 1)
 previous_slide!(p::Presentation) = set_slide_idx!(p, p.idx - 1)
 reset!(p::Presentation) = _set_slide_idx!(p, 1)
+current_index(p::Presentation) = p.idx
 
 
 
@@ -335,6 +338,20 @@ function save(name, presentation::Presentation; aspect=(16,9))
     GLMakie.activate!()
     return
 end
+
+function save(name, p::Presentation, idx::Int)
+    CairoMakie.activate!()
+  
+    set_slide_idx!(p, i)
+    scene = p.parent.scene
+    screen = CairoMakie.CairoScreen(scene, name, :pdf)
+    CairoMakie.cairo_draw(screen, scene)
+    Cairo.finish(screen.surface)
+  
+    GLMakie.activate!()
+    return
+  end
+  
 
 # Just to make sure
 __init__() = GLMakie.activate!()
