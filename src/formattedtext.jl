@@ -100,7 +100,7 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
                                                                     maxwidth)
         # add index offsets
         for (idx, offset) in enumerate(s1)
-            linewrap_positions_per_block[idx] .+= offset
+            linewrap_positions_per_block[idx] .+= idx == 1 ? 0 : offset
         end
 
         linewrap_positions[] = vcat(linewrap_positions_per_block...)
