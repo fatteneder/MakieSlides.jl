@@ -1,8 +1,3 @@
-# Note: All implementation details of @Layoutables are spread across three files within Makie.
-# We have combined those details into one file here.
-
-
-# from src/makielayout/types.jl
 @Block FormattedLabel begin
     @attributes begin
         "The displayed text string."
@@ -53,22 +48,7 @@
 end
 
 
-# @doc """
-# FormattedLabel has the following attributes:
-
-# $(let
-#     _, docs, defaults = default_attributes(FormattedLabel, nothing)
-#     docvarstring(docs, defaults)
-# end)
-# """
-# FormattedLabel
-
-
-# from Makie/src/makielayout/blocks/label.jl
 FormattedLabel(x, text; kwargs...) = FormattedLabel(x, text = text; kwargs...)
-# function layoutable(::Type{FormattedLabel}, fig_or_scene, text; kwargs...)
-#     layoutable(FormattedLabel, fig_or_scene; text = text, kwargs...)
-# end
 
 
 function initialize_block!(l::FormattedLabel)

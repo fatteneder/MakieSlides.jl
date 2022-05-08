@@ -11,13 +11,11 @@ import Cairo
 # Makie internal dependencies of formattedtext.jl
 import Makie: NativeFont, gl_bboxes
 import MakieCore: automatic
-
-
 # Makie internal dependencies of formattedlabel.jl, formattedlist, markdownbox.jl
 using Makie.MakieLayout
 import Makie.MakieLayout: @Block, inherit, round_to_IRect2D, initialize_block!
 
-# export Slide, slidetext!, slideheader!, slidefooter!, 
+
 export Presentation, add_slide!, reset!, save
 export formattedtext, formattedtext!
 export FormattedLabel, FormattedList, FormattedTable, MarkdownBox
@@ -39,6 +37,7 @@ mutable struct Presentation
     clear::Vector{Bool}
     locked::Bool
 end
+
 
 """
     Presentation(; kwargs...)
@@ -127,6 +126,7 @@ function Presentation(; kwargs...)
     return p
 end
 
+
 function _set_slide_idx!(p::Presentation, i)
     # Moving through slides quickly seems to sometimes trigger plot insertion 
     # before or during the `empty!(p.fig)` procedure. This causes emptying to
@@ -141,6 +141,7 @@ function _set_slide_idx!(p::Presentation, i)
     end
     return
 end
+
 
 function set_slide_idx!(p::Presentation, i)
     # If we jump randomly we need to start from the last cleared fig and build
@@ -171,7 +172,6 @@ reset!(p::Presentation) = _set_slide_idx!(p, 1)
 current_index(p::Presentation) = p.idx
 
 
-
 """
     add_slide!(f::Function, presentation[, clear = true])
 
@@ -196,122 +196,6 @@ function add_slide!(f::Function, p::Presentation, clear = true)
     return
 end
 
-
-#=
-function slidetext!(slide, text)
-  pane = slide.panes[:content]
-  rect = pane.targetlimits[]
-  xwidth, ywidth = rect.widths
-  xorigin, yorigin = rect.origin
-  origin_text = Point2f(xorigin,yorigin+ywidth)
-  t = formattedtext!(pane, text, position=origin_text, align=(:left,:top),
-                     space=:data, textsize=0.5)
-end
-
-
-function slideheader!(slide, text)
-  pane = slide.panes[:header]
-  rect = pane.targetlimits[]
-  xwidth, ywidth = rect.widths
-  xorigin, yorigin = rect.origin
-  origin_text = Point2f(xorigin,yorigin+ywidth/2)
-  t = formattedtext!(pane, text, position=origin_text, align=(:left,:center),
-                     space=:data, textsize=0.5)
-end
-
-
-function slidefooter!(slide, text)
-  pane = slide.panes[:footer]
-  rect = pane.targetlimits[]
-  xwidth, ywidth = rect.widths
-  xorigin, yorigin = rect.origin
-  origin_text = Point2f(xorigin,yorigin+ywidth/2)
-  t = formattedtext!(pane, text, position=origin_text, align=(:left,:center),
-                     space=:data, textsize=0.5)
-end
-
-
-Base.display(s::Slide) = display(s.figure)
-
-
-function save(name, s::Slide)
-  CairoMakie.activate!()
-
-  scene = s.figure.scene
-  screen = CairoMakie.CairoScreen(scene, name, :pdf)
-  CairoMakie.cairo_draw(screen, scene)
-  Cairo.finish(screen.surface)
-
-  GLMakie.activate!()
-end
-
-
-Base.@kwdef mutable struct Presentation
-  slides::Vector{Slide} = Slide[]
-  title::String = ""
-  author::String = ""
-  slidenumbers::Bool = false
-end
-
-
-
-function periodic_index(i,N) 
-  mod = i % N
-  return mod == 0 ? N : mod
-end
-
-
-function Base.display(presentation::Presentation)
-  slides = presentation.slides
-  @assert length(slides) > 0
-  N_slides = length(slides)
-
-
-  ### Use only one figure and display current slide within slide_pane
-  ### Right now this is not possible, because Makie cannot yet move plot objects in between figures
-  ### See https://discourse.julialang.org/t/makie-is-there-an-easy-way-to-combine-several-figures-into-a-new-figure-without-re-plotting/64874
-  # figure = Figure()
-  # figure[1,1] = slide_pane = GridLayout()
-  # figure[2,1] = control_pane = GridLayout(tellwidth=false)
-  # control_labels = [ "Previous", "Next" ]
-  # control_buttons = control_pane[1,1:2] = [ Button(figure, label = l) for l in control_labels ]
-  #
-  # index = 1
-  # on(events(figure).keyboardbutton) do event
-  #   # register control button actions
-  #   end
-  # end
-  # show first slide
-  # slide_pane = slides[index].figure[1,1]
-  # display(figure)
-
-  # Right now we must register events for every slide separately
-  for (index, slide) in enumerate(slides)
-    on(events(slide.figure).keyboardbutton) do event
-      if event.action == Keyboard.press
-        index_next = if event.key in (Keyboard.left, Keyboard.h)
-          periodic_index(index-1, N_slides)
-        elseif event.key in (Keyboard.down, Keyboard.j)
-          periodic_index(index-1, N_slides)
-        elseif event.key in (Keyboard.right, Keyboard.l)
-          periodic_index(index+1, N_slides)
-        elseif event.key in (Keyboard.up, Keyboard.k)
-          periodic_index(index+1, N_slides)
-        # TODO add close window
-        else
-          @warn "Unused key pressed: $(event.key)"
-          index
-        end
-        display(slides[index_next].figure)
-      end
-    end
-  end
-  # show first slide
-  display(slides[1])
-
-  return
-end
-=#
 
 function save(name, presentation::Presentation; aspect=(16,9))
     CairoMakie.activate!()
@@ -339,6 +223,7 @@ function save(name, presentation::Presentation; aspect=(16,9))
     return
 end
 
+
 function save(name, p::Presentation, idx::Int)
     CairoMakie.activate!()
   
@@ -350,10 +235,11 @@ function save(name, p::Presentation, idx::Int)
   
     GLMakie.activate!()
     return
-  end
+end
   
 
 # Just to make sure
 __init__() = GLMakie.activate!()
+
 
 end # module

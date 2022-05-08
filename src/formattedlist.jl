@@ -1,8 +1,3 @@
-# Note: All implementation details of @Layoutables are spread across three files within Makie.
-# We have combined those details into one file here.
-
-
-# from src/makielayout/types.jl
 @Block FormattedList begin
     @forwarded_layout
     @attributes begin
@@ -60,36 +55,11 @@
 end
 
 
-# @doc """
-# FormattedList has the following attributes:
-
-# $(let
-#     _, docs, defaults = default_attributes(FormattedList, nothing)
-#     docvarstring(docs, defaults)
-# end)
-# """
-# FormattedList
 FormattedList(x, text; kwargs...) = FormattedList(x, md_list = text; kwargs...)
 
 
 function initialize_block!(l::FormattedList)
     blockscene = l.blockscene
-
-    # default_attrs = default_attributes(FormattedList, blockscene).attributes
-    # theme_attrs = subtheme(blockscene, :FormattedList)
-    # attrs = merge!(merge!(Attributes(kwargs), theme_attrs), default_attrs)
-
-    # @extract attrs (md_list, textsize, font, color, visible, halign, valign,
-    #                 rotation, padding, strokecolor, strokewidth, strokevisible,
-    #                 backgroundcolor, backgroundvisible, tellwidth, tellheight,
-    #                 enumeration_pattern, itemization_symbol)
-
-    # layoutobservables = LayoutObservables(attrs.width, attrs.height, attrs.tellwidth, 
-    #     attrs.tellheight, halign, valign, attrs.alignmode; suggestedbbox = bbox)
-
-    # strokecolor_with_visibility = lift(l.strokecolor, l.strokevisible) do col, vis
-    #     vis ? col : RGBAf(0, 0, 0, 0)
-    # end
 
     item_symbol = l.itemization_symbol[]
     # bullet_match = match(r"^\s*(\*|\+|-)", item_symbol)
@@ -148,16 +118,3 @@ function initialize_block!(l::FormattedList)
 
     return l
 end
-
-
-# function Base.setindex!(gp::GridPosition, fmtlist::FormattedList)
-#     @info "setindex 1"
-#     gp.layout[gp.span.rows, gp.span.cols, gp.side] = fmtlist.elements[:l.layout]
-# end
-
-
-# function Base.setindex!(fig::Figure, fmtlist::FormattedList, rows, cols, side = GridLayoutBase.Inner())
-#     @info "setindex 2"
-#     fig.layout[rows, cols, side] = fmtlist.elements[:l.layout]
-#     fmtlist
-# end

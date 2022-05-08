@@ -1,8 +1,3 @@
-# Note: All implementation details of @Layoutables are spread across three files within Makie.
-# We have combined those details into one file here.
-
-
-# from src/makielayout/types.jl
 @Block FormattedTable begin
     @forwarded_layout
     # sliders::Vector{Slider}
@@ -64,15 +59,6 @@
 end
 
 
-# @doc """
-# FormattedTable has the following attributes:
-
-# $(let
-#     _, docs, defaults = default_attributes(FormattedTable, nothing)
-#     docvarstring(docs, defaults)
-# end)
-# """
-# FormattedTable
 FormattedTable(x, text; kwargs...) = FormattedTable(x, md_table = text; kwargs...)
 
 
@@ -82,18 +68,6 @@ const MARKDOWN_TO_MAKIE_HALIGNS = Dict(:l => :left, :c => :center, :r => :right)
 function initialize_block!(l::FormattedTable)
     blockscene = l.blockscene
     layoutobservables = l.layoutobservables
-
-    # blockscene = get_blockscene(fig_or_scene)
-    # default_attrs = default_attributes(FormattedTable, blockscene).attributes
-    # theme_attrs = subtheme(blockscene, :FormattedTable)
-    # attrs = merge!(merge!(Attributes(kwargs), theme_attrs), default_attrs)
-
-    # @extract attrs (md_table, textsize, font, color, visible,
-    #                 rotation, padding, strokecolor, strokewidth, strokevisible,
-    #                 backgroundcolor, backgroundvisible, tellwidth, tellheight)
-
-    # layoutobservables = LayoutObservables(attrs.width, attrs.height, attrs.tellwidth, 
-    #     attrs.tellheight, attrs.halign, attrs.valign, attrs.alignmode; suggestedbbox = bbox)
 
     strokecolor_with_visibility = lift(l.strokecolor, l.strokevisible) do col, vis
         vis ? col : RGBAf(0, 0, 0, 0)
@@ -110,43 +84,8 @@ function initialize_block!(l::FormattedTable)
                                               halign=l.halign, valign=l.valign_cells)
         end
     end
-    #
-    # # fix width of label_fillbox to maximum width of list symbols
-    # on(label_fillbox.layoutobservables.computedbbox) do bbox
-    #     current_w = label_fillbox.width[].x
-    #     max_w = 0.0
-    #     for lbl in symbol_labels
-    #         textbb = Rect2f(boundingbox(lbl.elements[:text]))
-    #         tw = width(textbb)
-    #         if max_w < tw; max_w = tw; end
-    #     end
-    #     if max_w != current_w
-    #         label_fillbox.width[] = Fixed(max_w)
-    #     end
-    # end
-    #
-    # label_fillbox.layoutobservables.suggestedbbox[] =
-    #     label_fillbox.layoutobservables.suggestedbbox[]
-    #
     rowgap!(l.layout, 5)
     colgap!(l.layout, 5)
 
-    # FormattedTable(fig_or_scene, layoutobservables, attrs, Dict(:l.layout => l.layout))
     return l
 end
-
-
-# function column_distribution(mode)
-#
-# end
-
-
-# function Base.setindex!(gp::GridPosition, fmtlist::FormattedTable)
-#     gp.layout[gp.span.rows, gp.span.cols, gp.side] = fmtlist.elements[:l.layout]
-# end
-
-
-# function Base.setindex!(fig::Figure, fmtlist::FormattedTable, rows, cols, side = GridLayoutBase.Inner())
-#     fig.layout[rows, cols, side] = fmtlist.elements[:l.layout]
-#     fmtlist
-# end

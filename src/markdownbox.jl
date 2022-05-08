@@ -1,7 +1,3 @@
-# Note: All implementation details of @Layoutables are spread across three files within Makie.
-# We have combined those details into one file here.
-
-
 @Block MarkdownBox begin
     @forwarded_layout
     @attributes begin
@@ -45,73 +41,13 @@
 end
 
 
-# @doc """
-# MarkdownBox has the following attributes:
-
-# $(let
-#     _, docs, defaults = default_attributes(MarkdownBox, nothing)
-#     docvarstring(docs, defaults)
-# end)
-# """
-# MarkdownBox
-
-
-# highjacking setindex! for GridPosition here to unpack the l.layout from a MarkdownBox directly
-# Needed for
-# ```julia
-#   f = Figure()
-#   MarkdownBox(f[1,1], "hello world!")
-# ```
-# # This seems hackish, but it does work out off the box for Labels.
-# function Base.setindex!(gp::GridPosition, mdbox::MarkdownBox)
-#     gp.layout[gp.span.rows, gp.span.cols, gp.side] = mdbox.elements[:l.layout]
-# end
-
-
-# highjacking setindex! for Figure here to unpack the l.layout from a MarkdownBox directly
-# Needed for
-# ```julia
-#   f = Figure()
-#   f[1,1] = MarkdownBox(f, "hello world!")
-# ```
-# This seems hackish, but it does work out off the box for Labels.
-# function Base.setindex!(fig::Figure, mdbox::MarkdownBox, rows, cols, side = GridLayoutBase.Inner())
-#     fig.layout[rows, cols, side] = mdbox.elements[:l.layout]
-#     mdbox
-# end
-
-
-# # from Makie/src/makielayout/layoutables/label.jl
-# function layoutable(::Type{MarkdownBox}, fig_or_scene, text::AbstractString; kwargs...)
-#     mdtext = Markdown.parse(text)
-#     layoutable(MarkdownBox, fig_or_scene; text = mdtext, kwargs...)
-# end
-
-
-# # from Makie/src/makielayout/layoutables/label.jl
-# function layoutable(::Type{MarkdownBox}, fig_or_scene, md::Markdown.MD; kwargs...)
-#     layoutable(MarkdownBox, fig_or_scene; text = md, kwargs...)
-# end
 MarkdownBox(x, text::AbstractString; kwargs...) = MarkdownBox(x, text = Markdown.parse(text); kwargs...)
 MarkdownBox(x, text::Markdown.MD; kwargs...) = MarkdownBox(x, text = text; kwargs...)
-
 
 
 function initialize_block!(l::MarkdownBox)
     blockscene = l.blockscene
     layoutobservables = l.layoutobservables
-
-    # blockscene = get_blockscene(fig_or_scene)
-    # default_attrs = default_attributes(MarkdownBox, blockscene).attributes
-    # theme_attrs = subtheme(blockscene, :MarkdownBox)
-    # attrs = merge!(merge!(Attributes(kwargs), theme_attrs), default_attrs)
-
-    # @extract attrs (text, textsize, font, color, visible, halign, valign,
-    #                 rotation, padding, backgroundvisible, backgroundcolor)
-
-    # layoutobservables = LayoutObservables(attrs.width, attrs.height, attrs.tellwidth, 
-    #                                       attrs.tellheight, halign, valign, attrs.alignmode; 
-    #                                       suggestedbbox = bbox)
 
     for (idx, md_element) in enumerate(l.text[].content)
         FormattedLabel(l.layout[idx, 1], text = md_element,
@@ -127,6 +63,5 @@ function initialize_block!(l::MarkdownBox)
 
     rowgap!(l.layout, 0)
 
-    # MarkdownBox(fig_or_scene, layoutobservables, attrs, Dict(:l.layout => l.layout))
     return l
 end
