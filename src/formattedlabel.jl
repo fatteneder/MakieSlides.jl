@@ -15,8 +15,10 @@
         textsize::Float32 = inherit(scene, :fontsize, 16f0)
         "The font family of the text."
         font::Makie.FreeTypeAbstraction.FTFont = inherit(scene, :font, "DejaVu Sans")
-        "The justification of the text (:left, :right, :center)."
-        justification = :left
+        "The vertical justification of the text (:top, :bottom, :center)."
+        vjustify = :top
+        "The horizontal justification of the text (:left, :right, :center)."
+        hjustify = :left
         "The lineheight multiplier for the text."
         lineheight::Float32 = 1.0
         "The vertical alignment of the text in its suggested boundingbox"
@@ -34,7 +36,7 @@
         "Controls if the parent layout can adjust to this element's width"
         tellwidth::Bool = true
         "Controls if the parent layout can adjust to this element's height"
-        tellheight::Bool = true
+        tellheight::Bool = false
         "The align mode of the text in its parent GridLayout."
         alignmode = Inside()
         "Controls if the background is visible."
@@ -73,92 +75,52 @@ function initialize_block!(l::FormattedLabel)
     blockscene = l.blockscene
     layoutobservables = l.layoutobservables
 
-    # default_attrs = default_attributes(FormattedLabel, blockscene).attributes
-    # theme_attrs = subtheme(blockscene, :FormattedLabel)
-    # attrs = merge!(merge!(Attributes(kwargs), theme_attrs), default_attrs)
-
-    # @extract attrs (text, textsize, font, color, visible, halign, valign,
-    #                 rotation, padding, strokecolor, strokewidth, strokevisible,
-    #                 backgroundcolor, backgroundvisible)
-
-    # layoutobservables = LayoutObservables(attrs.width, attrs.height, 
-    #                                       attrs.tellwidth, attrs.tellheight, halign, valign, 
-    #                                       attrs.alignmode; suggestedbbox = bbox)
-
     textpos = Observable(Point3f(0, 0, 0))
     textbb = Ref(BBox(0, 1, 0, 1))
 
     # the text
     fmttxt = formattedtext!(
         blockscene, l.text, position = textpos, textsize = l.textsize, 
-        font = l.font, color = l.color, visible = l.visible, align = (:center, :center), 
-        rotation = l.rotation, markerspace = :data, justification = l.justification,
+        font = l.font, color = l.color, visible = l.visible, align = (l.hjustify,l.vjustify), 
+        rotation = l.rotation, markerspace = :data, justification = l.hjustify,
         lineheight = l.lineheight, inspectable = false
     )
 
-    onany(l.text, l.textsize, l.font, l.rotation, l.padding) do _, _, _, _, padding
-        textbb[] = Rect2f(boundingbox(fmttxt))
-        autoheight = height(textbb[]) + padding[3] + padding[4]
-        layoutobservables.autosize[] = (nothing, autoheight)
-        return
-    end
+    onany(layoutobservables.computedbbox, l.padding, l.halign, l.valign, 
+          l.hjustify, l.vjustify) do bbox, padding, halign, valign, hjustify, vjustify
 
-    onany(layoutobservables.computedbbox, l.padding, l.halign, l.valign) do bbox, padding, halign, valign
-        tw = width(layoutobservables.suggestedbbox[]) - padding[1] - padding[2]
-        th = height(textbb[])
+        textbb = Rect2f(boundingbox(fmttxt))
+        tw, th = width(textbb), height(textbb)
+        w = width(bbox)
+        h = height(bbox)
+        box, boy = bbox.origin
 
-        box = bbox.origin[1]
-        boy = bbox.origin[2]
-
-        tx = box + padding[1] + 0.5 * tw
-        ty = boy + padding[3] + 0.5 * th
-
-        textpos[] = Point3f(tx, ty, 0)
-        if fmttxt.maxwidth[] != tw
-            fmttxt.maxwidth[] = tw
-            notify(l.text)
+        # position text
+        tx = box
+        tx += if hjustify === :left
+            padding[1]
+        elseif hjustify === :center
+            w/2
+        elseif hjustify === :right
+            w - padding[2]
         end
-        return
+        ty = boy
+        ty += if vjustify === :top
+            h - padding[3]
+        elseif vjustify === :center
+            h/2
+        elseif vjustify === :bottom
+            padding[4]
+        end
+        textpos[] = Point3f(tx, ty, 0)
+
+        fmttxt.maxwidth[] = w - padding[1] - padding[2]
+        
+        autoheight = th + padding[3] + padding[4]
+        if !isapprox(h, autoheight)
+            layoutobservables.reportedsize[] = (nothing, autoheight)
+        end
     end
-
-    # onany(layoutobservables.computedbbox, l.padding, l.halign, l.valign) do _, padding, halign, valign
-    #     textbb = Rect2f(boundingbox(fmttxt))
-    #     tw, th = width(textbb), height(textbb)
-    #     bbox = layoutobservables.suggestedbbox[]
-    #     w, h = width(bbox), height(bbox)
-    #     box, boy = bbox.origin
-
-    #     # position text
-    #     tx = box + padding[1]
-    #     isnothing(tx) && error() # TODO error message?
-    #     tx += if halign === :right
-    #         w
-    #     elseif halign === :center
-    #         0.5 * w
-    #     elseif halign === :left
-    #         0
-    #     end
-    #     ty = boy + padding[3]
-    #     ty += if valign === :top
-    #         h
-    #     elseif valign === :center
-    #         0.5 * h
-    #     elseif valign === :bottom
-    #         0
-    #     end
-
-    #     # textpos[] = Point3f(tx, ty, 0)
-       
-    #     # # TODO BROKEN
-    #     # if fmttxt.maxwidth[] != w
-    #     #     fmttxt.maxwidth[] = w 
-    #     # end
-
-    #     if h != th
-    #         layoutobservables.autosize[] = (nothing, th)
-    #     end
-    #     return
-    # end
 
     # background box
     strokecolor_with_visibility = lift(l.strokecolor, l.strokevisible) do col, vis

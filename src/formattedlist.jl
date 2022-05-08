@@ -55,7 +55,7 @@
         "The @printf pattern to format enumeration items"
         enumeration_pattern = "%i)"
         "The symbol for itemization items"
-        itemization_symbol = "*"
+        itemization_symbol = "•"
     end
 end
 
@@ -104,7 +104,7 @@ function initialize_block!(l::FormattedList)
     symbol = if ordered < 0
         i -> item_symbol
     else
-        format_enum_pttrn = Printf.Format(enumeration_pattern[])
+        format_enum_pttrn = Printf.Format(l.enumeration_pattern[])
         i -> Printf.format(format_enum_pttrn, i+ordered-1)
     end
 

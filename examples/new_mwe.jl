@@ -37,15 +37,13 @@ end
 add_slide!(pres) do fig
     Label(fig[1, 1:2], "Using FormattedLabel", textsize = 40, tellwidth = false)
 
-    # TODO: This errors because of string indexing
-    # FormattedLabel(fig[2, 1], """
-    # FormattedLabel test\n
-    # • *italic* text\n
-    # • **bold** text\n
-    # • `code`\n
-    # And a very long line that should really wrap so you can actually read it but probably wont because it's not implemented yet?
-    # """, tellheight = false, tellwidth = false
-    # )
+    # # TODO: This errors because of string indexing
+    FormattedList(fig[2, 1], md"""
+- *italic* text
+- **bold** text
+- `code`
+    """, tellheight = false, tellwidth = false
+    )
     str = """
     Look at this long line of text. Because it is long it would usually flow out of the Label but we have word wrapping so it doesn't!
     
@@ -55,10 +53,10 @@ add_slide!(pres) do fig
     
     `code` works (ignoring language for now; colored background would be cool)
     """
-    FormattedLabel(fig[2, 1], str, halign = :right, valign = :bottom, tellheight = false, tellwidth = false)
+    # FormattedLabel(fig[2, 1], str, halign = :right, valign = :bottom, tellheight = false, tellwidth = false)
     FormattedLabel(fig[2, 2], str, halign = :left,  valign = :top, tellheight = false, tellwidth = false)
-    FormattedLabel(fig[3, 1], str, tellheight = false, tellwidth = false)
-    FormattedLabel(fig[3, 2], str, justification = :right, tellheight = false, tellwidth = false)
+    FormattedLabel(fig[3, 1], str, hjustify = :center, tellheight = false, tellwidth = false)
+    FormattedLabel(fig[3, 2], str, hjustify = :right, tellheight = false, tellwidth = false)
 end
 
 add_slide!(pres) do fig
@@ -73,16 +71,15 @@ add_slide!(pres) do fig
     """)
 end
 
-# TODO
-# add_slide!(pres) do fig
-#     Label(fig[1, 1], "Example Table", textsize = 40, tellwidth = false)
-#     FormattedTable(fig[2, 1], md"""
-#         | Column One | Column Two | Column Three |
-#         |:---------- | ---------- |:------------:|
-#         | Row 1      | Column 2   |              |
-#         | Row 2      | Row 2      | Column 3     |
-#     """, tellwidth = false)
-# end
+add_slide!(pres) do fig
+    Label(fig[1, 1], "Example Table", textsize = 40, tellwidth = false)
+    FormattedTable(fig[2, 1], md"""
+| Column One | Column Two | Column Three |
+|:---------- | ---------- |:------------:|
+| Row 1      | Column 2   |              |
+| Row 2      | Row 2      | Column 3     |
+    """, tellwidth = false)
+end
 
 add_slide!(pres) do fig
     Label(fig[1, 1], "MarkdownBox Example", textsize = 40, tellwidth=false)
