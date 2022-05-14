@@ -21,7 +21,7 @@ import Makie.MakieLayout: @Block, inherit, round_to_IRect2D, initialize_block!
 
 export Presentation, add_slide!, reset!, save
 export formattedtext, formattedtext!
-export FormattedLabel, FormattedList, FormattedTable, MarkdownBox
+export FormattedLabel, FormattedList, FormattedTable, MarkdownBox, FormattedCodeblock
 
 
 include("formattedtext.jl")
@@ -29,6 +29,7 @@ include("formattedlabel.jl")
 include("formattedlist.jl")
 include("formattedtable.jl")
 include("formattedcode.jl")
+include("formattedcodeblock.jl")
 include("markdownbox.jl")
 
 
@@ -250,7 +251,7 @@ const pygments_lexers = PyCall.PyNULL()
 const pygments_styles = PyCall.PyNULL()
 
 # Just to make sure
-function __init__() 
+function __init__()
     GLMakie.activate!()
     copy!(pygments, PyCall.pyimport_conda("pygments", "pygments"))
     copy!(pygments_lexers, PyCall.pyimport_conda("pygments.lexers", "pygments"))

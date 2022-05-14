@@ -127,7 +127,7 @@ function color_from_style(style)
     elseif !isnothing(style["ansicolor"])
         parse(RGBAf, PYGMENTS_ANSICOLORS[style["ansicolor"]])
     else
-        RGBAf(0.0,0.0,0.0,1.0) # default black to black if no color is provided
+        RGBAf(0.0,0.0,0.0,1.0) # default to black if no color is provided
     end
     return rgbcolor
 end
