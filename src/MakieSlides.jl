@@ -1,15 +1,18 @@
 module MakieSlides
 
 
-using CairoMakie, GLMakie
-using Markdown
+using CairoMakie
+using Colors
+using GLMakie
 using Makie
+using Markdown
 using Printf
+import PyCall
 import Cairo
 
 
-# Makie internal dependencies of formattedtext.jl
-import Makie: NativeFont, gl_bboxes
+# Makie internal dependencies of formattedtext.jl, formattedcode.jl
+import Makie: NativeFont, gl_bboxes, attribute_per_char, glyph_collection
 import MakieCore: automatic
 # Makie internal dependencies of formattedlabel.jl, formattedlist, markdownbox.jl
 using Makie.MakieLayout
@@ -25,6 +28,7 @@ include("formattedtext.jl")
 include("formattedlabel.jl")
 include("formattedlist.jl")
 include("formattedtable.jl")
+include("formattedcode.jl")
 include("markdownbox.jl")
 
 
@@ -241,8 +245,17 @@ function save(name, p::Presentation, idx::Int)
 end
   
 
+const pygments = PyCall.PyNULL()
+const pygments_lexers = PyCall.PyNULL()
+const pygments_styles = PyCall.PyNULL()
+
 # Just to make sure
-__init__() = GLMakie.activate!()
+function __init__() 
+    GLMakie.activate!()
+    copy!(pygments, PyCall.pyimport_conda("pygments", "pygments"))
+    copy!(pygments_lexers, PyCall.pyimport_conda("pygments.lexers", "pygments"))
+    copy!(pygments_styles, PyCall.pyimport_conda("pygments.styles", "pygments"))
+end
 
 
 end # module
