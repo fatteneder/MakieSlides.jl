@@ -28,6 +28,6 @@ lots of text blabla
 
 sers
 """, tellwidth=false, hjustify=:left, vjustify=:top, backgroundvisible=true,
-padding=(10.0,10.0,10.0,10.0))
+padding=(0.0,0.0,0.0,0.0))
 box = Box(f[2,1], tellheight=false, visible=false)
 f
