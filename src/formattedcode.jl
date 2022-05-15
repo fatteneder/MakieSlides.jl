@@ -20,7 +20,8 @@ Plots syntax highlighted code.
         markerspace = :pixel,
         offset = (0.0, 0.0),
         inspectable = theme(scene, :inspectable),
-        codestyle = :friendly
+        codestyle = :friendly,
+        maxwidth = 0.0
     )
 end
 
@@ -28,17 +29,26 @@ end
 function Makie.plot!(plot::FormattedCode{<:Tuple{<:Markdown.Code}})
 
     all_styles = Symbol.(collect(pygments_styles.get_all_styles()))
+    default_textsize = plot.textsize[]
 
-    # attach a function to any text that calculates the glyph syntax highlighting
-    # and layout and stores it
-    glyphcollection = lift(plot.code, plot.textsize, plot.font, plot.align,
-            plot.rotation, plot.justification, plot.lineheight,
-            plot.color, plot.strokecolor, plot.strokewidth, plot.codestyle,
-            plot.space) do code, ts, f, al, rot, jus, lh, col, scol, swi, style, codestyle
+    # For codeblocks we don't want automatic line wrapping. Instead we adjust
+    # the font size such that the boundingbox's width is smaller than plot.maxwidth.
+    # We iteratively shrink it starting from plot.textsize.
+    settled_on_textsize = false
 
-        if !(style in all_styles)
-            @warn "Could not find style '$style', using friendly."
-            plot.style[] = :default
+    glyphcollection = lift(plot.code, plot.codestyle, plot.textsize, plot.font, plot.align,
+            plot.rotation, plot.justification, plot.lineheight, plot.color, plot.strokecolor,
+            plot.strokewidth) do code, codestyle, ts, f, al, rot, jus, lh, col, scol, swi
+
+        if !(codestyle in all_styles)
+            @warn "Could not find style '$codestyle', using friendly."
+            plot.style[] = :friendly
+        end
+
+        if settled_on_textsize
+            # any update requires us to restart the textsize iteration
+            settled_on_textsize = false
+            plot.textsize[] = default_textsize
         end
 
         ts = to_textsize(ts)
@@ -47,14 +57,48 @@ function Makie.plot!(plot::FormattedCode{<:Tuple{<:Markdown.Code}})
         col = to_color(col)
         scol = to_color(scol)
 
-        layout_code(code, style, ts, f, al, rot, jus, lh, col, scol, swi)
+        layout_code(code, codestyle, ts, f, al, rot, jus, lh, col, scol, swi)
     end
 
+    onany(glyphcollection, plot.maxwidth) do glc, maxwidth
+        if maxwidth > 0.0
+            w = estimate_width(glyphcollection[])
+            if w > maxwidth
+                ts = plot.textsize[] - 1
+                if ts <= 0
+                    error("Failed to determine font size to fit code into block.")
+                end
+                plot.textsize[] = ts
+            else
+                settled_on_textsize = true
+            end
+        end
+    end
+
+    notify(plot.maxwidth)
+
+    # Need to remove :codestyle attribute,
+    # see https://github.com/JuliaPlots/Makie.jl/issues/1941
     text_attributes = copy(plot.attributes)
     delete!(text_attributes, :codestyle)
     text!(plot, glyphcollection; text_attributes...)
 
     plot
+end
+
+
+function estimate_width(glyphcollection)
+    max_w, w = 0.0, 0.0
+    glyphs, glyphbbs = glyphcollection.glyphs, gl_bboxes(glyphcollection)
+    for (g, bb) in zip(glyphs, glyphbbs)
+        w += width(bb)
+        if g == '\n'
+            max_w = max(max_w, w)
+            w = 0.0
+        end
+    end
+    max_w = max(max_w, w)
+    return max_w
 end
 
 
