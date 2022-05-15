@@ -80,6 +80,8 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
 
     text!(plot, glyphcollection; plot.attributes...)
 
+    notify(plot.text)
+
     plot
 end
 
