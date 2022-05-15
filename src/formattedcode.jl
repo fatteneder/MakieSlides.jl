@@ -19,21 +19,27 @@ Plots syntax highlighted code.
         space = :data,
         markerspace = :pixel,
         offset = (0.0, 0.0),
-        inspectable = theme(scene, :inspectable)
+        inspectable = theme(scene, :inspectable),
+        codestyle = :friendly
     )
 end
 
 
 function Makie.plot!(plot::FormattedCode{<:Tuple{<:Markdown.Code}})
 
-    md_code = plot[:code]
+    all_styles = Symbol.(collect(pygments_styles.get_all_styles()))
 
     # attach a function to any text that calculates the glyph syntax highlighting
     # and layout and stores it
-    glyphcollection = lift(md_code, plot.textsize, plot.font, plot.align,
+    glyphcollection = lift(plot.code, plot.textsize, plot.font, plot.align,
             plot.rotation, plot.justification, plot.lineheight,
-            plot.color, plot.strokecolor, plot.strokewidth) do code,
-                ts, f, al, rot, jus, lh, col, scol, swi
+            plot.color, plot.strokecolor, plot.strokewidth, plot.codestyle,
+            plot.space) do code, ts, f, al, rot, jus, lh, col, scol, swi, style, codestyle
+
+        if !(style in all_styles)
+            @warn "Could not find style '$style', using friendly."
+            plot.style[] = :default
+        end
 
         ts = to_textsize(ts)
         f = to_font(f)
@@ -41,10 +47,12 @@ function Makie.plot!(plot::FormattedCode{<:Tuple{<:Markdown.Code}})
         col = to_color(col)
         scol = to_color(scol)
 
-        layout_code(code, ts, f, al, rot, jus, lh, col, scol, swi)
+        layout_code(code, style, ts, f, al, rot, jus, lh, col, scol, swi)
     end
 
-    text!(plot, glyphcollection; plot.attributes...)
+    text_attributes = copy(plot.attributes)
+    delete!(text_attributes, :codestyle)
+    text!(plot, glyphcollection; text_attributes...)
 
     plot
 end
@@ -60,32 +68,32 @@ Compute a GlyphCollection for a `string` given textsize, font, align, rotation, 
 justification, and lineheight.
 """
 function layout_code(
-        md_code::Markdown.Code, textsize::Union{AbstractVector, Number},
+        md_code::Markdown.Code, style, textsize::Union{AbstractVector, Number},
         font, align, rotation, justification, lineheight, color, strokecolor, strokewidth
     )
 
     rscale = to_textsize(textsize)
-    rot = to_rotation(rotation)
+    rot    = to_rotation(rotation)
 
-    string = ""
-    fontperchar = Any[]
+    glyph_string    = ""
+    fontperchar     = Any[]
     textsizeperchar = Any[]
-    colorperchar = Any[]
+    colorperchar    = Any[]
 
     code, lang = md_code.code, md_code.language
-    lexer = pygments_lexers.get_lexer_by_name(lang)
-    style = pygments_styles.get_style_by_name("gruvbox-light")
-    tokens = lexer.get_tokens(code)
+    pylexer    = pygments_lexers.get_lexer_by_name(lang)
+    pygstyler  = pygments_styles.get_style_by_name(string(style))
+    tokens     = pylexer.get_tokens(code)
     for (token, token_string) in tokens
-        token_style = style.style_for_token(token)
-        color       = color_from_style(token_style)
-        ft_font     = font_from_style(token_style)
+        token_pygstyle = pygstyler.style_for_token(token)
+        color          = color_from_pygstyle(token_pygstyle)
+        ft_font        = font_from_pygstyle(token_pygstyle, font)
 
         token_fontperchar  = attribute_per_char(token_string, ft_font)
         token_sizeperchar  = attribute_per_char(token_string, rscale)
         token_colorperchar = attribute_per_char(token_string, color)
 
-        string *= token_string
+        glyph_string *= token_string
 
         append!(fontperchar, token_fontperchar)
         append!(textsizeperchar, token_sizeperchar)
@@ -93,7 +101,7 @@ function layout_code(
     end
 
     glyphcollection = glyph_collection(
-        string, fontperchar, textsizeperchar, align[1], align[2], 
+        glyph_string, fontperchar, textsizeperchar, align[1], align[2],
         lineheight, justification, rot, colorperchar, strokecolor, strokewidth
     )
 
@@ -121,11 +129,11 @@ const PYGMENTS_ANSICOLORS = Dict(
     )
 
 
-function color_from_style(style)
-    rgbcolor = if !isnothing(style["color"])
-        parse(RGBAf, "#$(style["color"])")
-    elseif !isnothing(style["ansicolor"])
-        parse(RGBAf, PYGMENTS_ANSICOLORS[style["ansicolor"]])
+function color_from_pygstyle(pygstyle)
+    rgbcolor = if !isnothing(pygstyle["color"])
+        parse(RGBAf, "#$(pygstyle["color"])")
+    elseif !isnothing(pygstyle["ansicolor"])
+        parse(RGBAf, PYGMENTS_ANSICOLORS[pygstyle["ansicolor"]])
     else
         RGBAf(0.0,0.0,0.0,1.0) # default to black if no color is provided
     end
@@ -133,14 +141,14 @@ function color_from_style(style)
 end
 
 
-function font_from_style(style)
+function font_from_pygstyle(pygstyle, basefont::Makie.FreeTypeAbstraction.FTFont)
     # unused font attributes so far
-    # style["roman"],
-    # style["sans"],
-    # style["mono"],
-    # style["underline"] ]
-    guess_font_name = ""
-    guess_font_name *= style["bold"] ? " bold" : ""
-    guess_font_name *= style["italic"] ? " italic" : ""
+    # pygstyle["roman"],
+    # pygstyle["sans"],
+    # pygstyle["mono"],
+    # pygstyle["underline"] ]
+    guess_font_name = string(basefont.family_name)
+    guess_font_name *= pygstyle["bold"] ? " bold" : ""
+    guess_font_name *= pygstyle["italic"] ? " italic" : ""
     to_font(guess_font_name)
 end
