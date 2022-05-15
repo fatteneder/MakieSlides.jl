@@ -61,7 +61,7 @@ function initialize_block!(l::FormattedLabel)
 
     fmttxt = formattedtext!(
         blockscene, l.text, position = textpos, textsize = l.textsize, font = l.font, color = l.color,
-        visible = l.visible, align = (:center, :center), rotation = l.rotation, markerspace = :data,
+        visible = l.visible, align = (l.halign,l.valign), rotation = l.rotation, markerspace = :data,
         justification = l.justification, lineheight = l.lineheight, maxwidth = word_wrap_width,
         inspectable = false)
 
@@ -81,6 +81,11 @@ function initialize_block!(l::FormattedLabel)
     end
 
     onany(layoutobservables.computedbbox, l.padding) do bbox, padding
+
+        w = width(bbox)
+        h = height(bbox)
+        box, boy = bbox.origin
+
         if l.word_wrap[]
             tw = width(layoutobservables.suggestedbbox[]) - padding[1] - padding[2]
         else
@@ -88,13 +93,25 @@ function initialize_block!(l::FormattedLabel)
         end
         th = height(textbb[])
 
-        box = bbox.origin[1]
-        boy = bbox.origin[2]
-
-        tx = box + padding[1] + 0.5 * tw
-        ty = boy + padding[3] + 0.5 * th
-
+        tx = box
+        tx += if l.halign[] === :left
+            padding[1]
+        elseif l.halign[] === :center
+            w/2
+        elseif l.halign[] === :right
+            w - padding[2]
+        end
+        ty = boy
+        ty += if l.valign[] === :top
+            h - padding[3]
+        elseif l.valign[] === :center
+            h/2
+        elseif l.valign[] === :bottom
+            padding[4]
+        end
         textpos[] = Point3f(tx, ty, 0)
+
+        # textpos[] = Point3f(tx, ty, 0)
         if l.word_wrap[] && (word_wrap_width[] != tw)
             word_wrap_width[] = tw
             notify(l.text)
@@ -108,7 +125,7 @@ function initialize_block!(l::FormattedLabel)
     end
 
     ibbox = lift(layoutobservables.computedbbox) do bbox
-        round_to_IRect2D(layoutobservables.suggestedbbox[])
+        round_to_IRect2D(layoutobservables.computedbbox[])
     end
 
     # TODO: simplify this to lines and move backgroundcolor to blockscene?
