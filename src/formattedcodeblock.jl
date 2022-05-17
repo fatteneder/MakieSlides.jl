@@ -30,7 +30,7 @@
         "The counterclockwise rotation of the text in radians."
         rotation::Float32 = 0f0
         "The extra space added to the sides of the text boundingbox."
-        padding = (0f0, 0f0, 0f0, 0f0)
+        padding = (10f0, 10f0, 10f0, 10f0)
         "The height setting of the text."
         height = Auto()
         "The width setting of the text."
