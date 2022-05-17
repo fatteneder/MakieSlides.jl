@@ -65,9 +65,7 @@ function Makie.plot!(plot::FormattedCode{<:Tuple{<:Markdown.Code}})
             w = estimate_width(glyphcollection[])
             if w > maxwidth
                 ts = plot.textsize[] - 1
-                if ts <= 0
-                    error("Failed to determine font size to fit code into block.")
-                end
+                ts <= 0 && @warn "FormattedCode: Cannot shrink font size any further."
                 plot.textsize[] = ts
             else
                 settled_on_textsize = true
@@ -77,8 +75,6 @@ function Makie.plot!(plot::FormattedCode{<:Tuple{<:Markdown.Code}})
 
     notify(plot.maxwidth)
 
-    # Need to remove :codestyle attribute,
-    # see https://github.com/JuliaPlots/Makie.jl/issues/1941
     text_attributes = copy(plot.attributes)
     delete!(text_attributes, :codestyle)
     text!(plot, glyphcollection; text_attributes...)

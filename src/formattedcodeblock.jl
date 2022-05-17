@@ -51,6 +51,8 @@
         strokevisible::Bool = true
         "The color of the border."
         strokecolor::RGBAf = RGBf(0, 0, 0)
+        "The syntax highlighting theme."
+        codestyle::Symbol = :friendly
     end
 end
 
@@ -72,7 +74,7 @@ function initialize_block!(l::FormattedCodeblock)
         blockscene, code, position = textpos, textsize = l.textsize, 
         font = l.font, color = l.color, visible = l.visible, align = (l.hjustify,l.vjustify), 
         rotation = l.rotation, markerspace = :data, justification = l.hjustify,
-        lineheight = l.lineheight, inspectable = false
+        lineheight = l.lineheight, inspectable = false, codestyle = l.codestyle
     )
 
     onany(layoutobservables.computedbbox, l.padding, l.halign, l.valign, 
@@ -102,6 +104,14 @@ function initialize_block!(l::FormattedCodeblock)
             padding[4]
         end
         textpos[] = Point3f(tx, ty, 0)
+
+        notify(fmtcode.code)
+        fmtcode.maxwidth[] = w - padding[1] - padding[2]
+
+        autoheight = th + padding[3] + padding[4]
+        if !isapprox(h, autoheight)
+            layoutobservables.reportedsize[] = (nothing, autoheight)
+        end
     end
 
     # # background box
