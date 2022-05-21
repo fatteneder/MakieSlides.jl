@@ -65,14 +65,17 @@ function initialize_block!(l::FormattedCodeblock)
 
     all_styles = Symbol.(collect(pygments_styles.get_all_styles()))
 
-    backgroundcolor = lift(l.codestyle) do style
+    pygstyler = lift(l.codestyle) do style
         if !(style in all_styles)
             @warn "Could not find style '$style', using friendly."
             style = :friendly
             l.codestyle[] = style
         end
         pygstyler = pygments_styles.get_style_by_name(string(style))
-        parse(RGBAf, pygstyler.background_color)
+    end
+
+    backgroundcolor = lift(pygstyler) do styler
+        parse(RGBAf, styler.background_color)
     end
 
     # the text
@@ -80,7 +83,7 @@ function initialize_block!(l::FormattedCodeblock)
         blockscene, code, position = textpos, textsize = l.textsize, 
         font = l.font, visible = l.visible, align = (:left, :top), 
         rotation = l.rotation, markerspace = :data, justification = :left,
-        lineheight = l.lineheight, inspectable = false, codestyle = l.codestyle
+        lineheight = l.lineheight, inspectable = false, pygstyler = pygstyler
     )
 
     onany(layoutobservables.computedbbox, l.padding, l.halign, l.valign) do bbox, 

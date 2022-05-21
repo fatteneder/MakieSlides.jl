@@ -19,7 +19,7 @@ Plots syntax highlighted code.
         markerspace = :pixel,
         offset = (0.0, 0.0),
         inspectable = theme(scene, :inspectable),
-        codestyle = :friendly,
+        pygstyler = pygments_styles.get_style_by_name("friendly"),
         maxwidth = 0.0
     )
 end
@@ -33,15 +33,6 @@ function Makie.plot!(plot::FormattedCode{<:Tuple{<:Markdown.Code}})
     # the font size such that the boundingbox's width is smaller than plot.maxwidth.
     # We iteratively shrink it starting from plot.textsize.
     settled_on_textsize = false
-
-    all_styles = Symbol.(collect(pygments_styles.get_all_styles()))
-    pygstyler = lift(plot.codestyle) do style
-        if !(style in all_styles)
-            @warn "Could not find style '$style', using friendly."
-            plot.codestyle[] = :friendly
-        end
-        pygments_styles.get_style_by_name(string(style))
-    end
 
     glyphcollection = lift(plot.code, plot.textsize, plot.font, plot.align,
             plot.rotation, plot.justification, plot.lineheight, plot.strokecolor,
@@ -58,7 +49,7 @@ function Makie.plot!(plot::FormattedCode{<:Tuple{<:Markdown.Code}})
         rot = to_rotation(rot)
         scol = to_color(scol)
 
-        layout_code(code, pygstyler[], ts, f, al, rot, jus, lh, scol, swi)
+        layout_code(code, plot.pygstyler[], ts, f, al, rot, jus, lh, scol, swi)
     end
 
     onany(glyphcollection, plot.maxwidth) do glc, maxwidth
@@ -77,7 +68,7 @@ function Makie.plot!(plot::FormattedCode{<:Tuple{<:Markdown.Code}})
     notify(plot.maxwidth)
 
     text_attributes = copy(plot.attributes)
-    delete!(text_attributes, :codestyle)
+    delete!(text_attributes, :pygstyler)
     text!(plot, glyphcollection; text_attributes...)
 
     plot
