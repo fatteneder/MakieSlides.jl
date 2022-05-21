@@ -82,6 +82,31 @@ add_slide!(pres) do fig
 end
 
 add_slide!(pres) do fig
+    Label(fig[1, 1], "Example code block", textsize = 40, tellwidth=false)
+    FormattedCodeblock(fig[2, 1], md"""
+    ```julia
+    # by Lazaro Alonso - BeautifulMakie
+    let
+        x = 0:0.05:1
+        y = x .^ 2
+        ax = Axis(fig[1, 2], xlabel = "x", ylabel = "y")
+        lines!(ax, x, y, color = :orangered, label = "Label")
+        band!(ax, x, fill(0, length(x)), y; color = (:orange, 0.25), label = "Label")
+        axislegend(ax ; merge = true, position = :lt)
+    end;
+    ```
+    """, tellwidth=false)
+    let
+        x = 0:0.05:1
+        y = x .^ 2
+        ax = Axis(fig[3,1], xlabel = "x", ylabel = "y", tellheight=true)
+        lines!(ax, x, y, color = :orangered, label = "Label")
+        band!(ax, x, fill(0, length(x)), y; color = (:orange, 0.25), label = "Label")
+        axislegend(ax ; merge = true, position = :lt)
+    end
+end
+
+add_slide!(pres) do fig
     Label(fig[1, 1], "MarkdownBox Example", textsize = 40, tellwidth=false)
     Box(fig[2, 1], visible = false) # Spacer
     MarkdownBox(fig[3, 1], """
@@ -97,7 +122,7 @@ add_slide!(pres) do fig
 - [x] Automatic line wrapping
 - [x] Itemizations and enumerations
 - [x] Tables
-- [ ] Code blocks
+- [x] Code blocks with syntax highlighting
 - [ ] InlineCode
 - [ ] Headings
 - [ ] Horizontal dividers
