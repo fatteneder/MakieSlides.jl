@@ -75,8 +75,13 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
         col = to_color(col)
         scol = to_color(scol)
 
+        # TODO Emojis should be replaced here
+        # TODO can we use a buffer for the replaced text?
+        # emoji_str = replace_emojis(str)
+
         layout_formatted_text(str, positions, ts, f, al, rot, jus, lh, col, scol, swi)
     end
+
 
     default_glyphs   = glyphcollection[].glyphs
     default_glyphbbs = gl_bboxes(glyphcollection[])
@@ -112,6 +117,15 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
     text!(plot, glyphcollection; plot.attributes...)
 
     plot
+end
+
+
+function replace_emojis(str)
+    for m in eachmatch(RGX_EMOJI, str)
+        emoji = first(m.captures)
+        str = replace(str, ":$(emoji):" => EMOJIS[emoji])
+    end
+    str
 end
 
 
@@ -229,6 +243,12 @@ function layout_formatted_text(
                              textelement_string[whitespace_position+1:end]
             textelement_length = length(textelement_string)
             iter = iterate(linewrap_positions, state)
+        end
+
+        # TODO emojis should be replaced before layouting the whole text
+        for m in eachmatch(RGX_EMOJI, textelement_string)
+            emoji = first(m.captures)
+            textelement_string = replace(textelement_string, ":$(emoji):" => EMOJIS[emoji])
         end
 
         scanned_position += textelement_length
