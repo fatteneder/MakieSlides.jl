@@ -61,7 +61,11 @@ function initialize_block!(l::FormattedCodeblock)
     textpos = Observable(Point3f(0, 0, 0))
     textbb = Ref(BBox(0, 1, 0, 1))
 
-    code = l.code[].content[1]
+    code = first(l.code[].content)
+    if !(code isa Markdown.Code)
+        error("Failed to extract code snippet. Make sure your Markdown only contains a single \
+              ``` ... ``` block.")
+    end
 
     all_styles = Symbol.(collect(pygments_styles.get_all_styles()))
 
