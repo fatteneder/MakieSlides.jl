@@ -6,7 +6,6 @@ Plots syntax highlighted code.
 @recipe(FormattedCode, code) do scene
     Attributes(;
         default_theme(scene)...,
-        color = theme(scene, :textcolor),
         font = theme(scene, :font),
         strokecolor = (:black, 0.0),
         strokewidth = 0,
@@ -28,7 +27,6 @@ end
 
 function Makie.plot!(plot::FormattedCode{<:Tuple{<:Markdown.Code}})
 
-    all_styles = Symbol.(collect(pygments_styles.get_all_styles()))
     default_textsize = plot.textsize[]
 
     # For codeblocks we don't want automatic line wrapping. Instead we adjust
@@ -36,14 +34,18 @@ function Makie.plot!(plot::FormattedCode{<:Tuple{<:Markdown.Code}})
     # We iteratively shrink it starting from plot.textsize.
     settled_on_textsize = false
 
-    glyphcollection = lift(plot.code, plot.codestyle, plot.textsize, plot.font, plot.align,
-            plot.rotation, plot.justification, plot.lineheight, plot.color, plot.strokecolor,
-            plot.strokewidth) do code, codestyle, ts, f, al, rot, jus, lh, col, scol, swi
-
-        if !(codestyle in all_styles)
-            @warn "Could not find style '$codestyle', using friendly."
-            plot.style[] = :friendly
+    all_styles = Symbol.(collect(pygments_styles.get_all_styles()))
+    pygstyler = lift(plot.codestyle) do style
+        if !(style in all_styles)
+            @warn "Could not find style '$style', using friendly."
+            plot.codestyle[] = :friendly
         end
+        pygments_styles.get_style_by_name(string(style))
+    end
+
+    glyphcollection = lift(plot.code, plot.textsize, plot.font, plot.align,
+            plot.rotation, plot.justification, plot.lineheight, plot.strokecolor,
+            plot.strokewidth) do code, ts, f, al, rot, jus, lh, scol, swi
 
         if settled_on_textsize
             # any update requires us to restart the textsize iteration
@@ -54,10 +56,9 @@ function Makie.plot!(plot::FormattedCode{<:Tuple{<:Markdown.Code}})
         ts = to_textsize(ts)
         f = to_font(f)
         rot = to_rotation(rot)
-        col = to_color(col)
         scol = to_color(scol)
 
-        layout_code(code, codestyle, ts, f, al, rot, jus, lh, col, scol, swi)
+        layout_code(code, pygstyler[], ts, f, al, rot, jus, lh, scol, swi)
     end
 
     onany(glyphcollection, plot.maxwidth) do glc, maxwidth
@@ -108,8 +109,8 @@ Compute a GlyphCollection for a `string` given textsize, font, align, rotation, 
 justification, and lineheight.
 """
 function layout_code(
-        md_code::Markdown.Code, style, textsize::Union{AbstractVector, Number},
-        font, align, rotation, justification, lineheight, color, strokecolor, strokewidth
+        md_code::Markdown.Code, pygstyler, textsize::Union{AbstractVector, Number},
+        font, align, rotation, justification, lineheight, strokecolor, strokewidth
     )
 
     rscale = to_textsize(textsize)
@@ -122,7 +123,6 @@ function layout_code(
 
     code, lang = md_code.code, md_code.language
     pylexer    = pygments_lexers.get_lexer_by_name(lang)
-    pygstyler  = pygments_styles.get_style_by_name(string(style))
     tokens     = pylexer.get_tokens(code)
     for (token, token_string) in tokens
         token_pygstyle = pygstyler.style_for_token(token)
@@ -182,7 +182,7 @@ end
 
 
 function font_from_pygstyle(pygstyle, basefont::Makie.FreeTypeAbstraction.FTFont)
-    # unused font attributes so far
+    # unused font attributes
     # pygstyle["roman"],
     # pygstyle["sans"],
     # pygstyle["mono"],

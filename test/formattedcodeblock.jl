@@ -13,6 +13,6 @@ end
 """
 
 codeblock = FormattedCodeblock(f[1,1], md,
-tellwidth=false, hjustify=:left, vjustify=:top, backgroundvisible=true)
+tellwidth=false, backgroundvisible=true)
 
 f

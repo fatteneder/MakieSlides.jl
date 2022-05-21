@@ -17,10 +17,6 @@
         textsize::Float32 = inherit(scene, :fontsize, 16f0)
         "The font family of the text."
         font::Makie.FreeTypeAbstraction.FTFont = inherit(scene, :font, "DejaVu Sans")
-        "The vertical justification of the text (:top, :bottom, :center)."
-        vjustify = :top
-        "The horizontal justification of the text (:left, :right, :center)."
-        hjustify = :left
         "The lineheight multiplier for the text."
         lineheight::Float32 = 1.0
         "The vertical alignment of the text in its suggested boundingbox"
@@ -43,8 +39,6 @@
         alignmode = Inside()
         "Controls if the background is visible."
         backgroundvisible::Bool = true
-        "The color of the background. "
-        backgroundcolor::RGBAf = RGBf(0.9, 0.9, 0.9)
         "The line width of the rectangle's border."
         strokewidth::Float32 = 1f0
         "Controls if the border of the rectangle is visible."
@@ -52,7 +46,7 @@
         "The color of the border."
         strokecolor::RGBAf = RGBf(0, 0, 0)
         "The syntax highlighting theme."
-        codestyle::Symbol = :friendly
+        codestyle::Symbol = :material
     end
 end
 
@@ -69,16 +63,28 @@ function initialize_block!(l::FormattedCodeblock)
 
     code = l.code[].content[1]
 
+    all_styles = Symbol.(collect(pygments_styles.get_all_styles()))
+
+    backgroundcolor = lift(l.codestyle) do style
+        if !(style in all_styles)
+            @warn "Could not find style '$style', using friendly."
+            style = :friendly
+            l.codestyle[] = style
+        end
+        pygstyler = pygments_styles.get_style_by_name(string(style))
+        parse(RGBAf, pygstyler.background_color)
+    end
+
     # the text
     fmtcode = formattedcode!(
         blockscene, code, position = textpos, textsize = l.textsize, 
-        font = l.font, color = l.color, visible = l.visible, align = (l.hjustify,l.vjustify), 
-        rotation = l.rotation, markerspace = :data, justification = l.hjustify,
+        font = l.font, visible = l.visible, align = (:left, :top), 
+        rotation = l.rotation, markerspace = :data, justification = :left,
         lineheight = l.lineheight, inspectable = false, codestyle = l.codestyle
     )
 
-    onany(layoutobservables.computedbbox, l.padding, l.halign, l.valign, 
-          l.hjustify, l.vjustify) do bbox, padding, halign, valign, hjustify, vjustify
+    onany(layoutobservables.computedbbox, l.padding, l.halign, l.valign) do bbox, 
+            padding, halign, valign
 
         textbb = Rect2f(boundingbox(fmtcode))
         tw, th = width(textbb), height(textbb)
@@ -87,22 +93,8 @@ function initialize_block!(l::FormattedCodeblock)
         box, boy = bbox.origin
 
         # position text
-        tx = box
-        tx += if hjustify === :left
-            padding[1]
-        elseif hjustify === :center
-            w/2
-        elseif hjustify === :right
-            w - padding[2]
-        end
-        ty = boy
-        ty += if vjustify === :top
-            h - padding[3]
-        elseif vjustify === :center
-            h/2
-        elseif vjustify === :bottom
-            padding[4]
-        end
+        tx = box + padding[1]
+        ty = boy + h - padding[3]
         textpos[] = Point3f(tx, ty, 0)
 
         notify(fmtcode.code)
@@ -124,7 +116,7 @@ function initialize_block!(l::FormattedCodeblock)
     end
 
     # TODO: simplify this to lines and move backgroundcolor to blockscene?
-    bg = poly!(blockscene, ibbox, color = l.backgroundcolor, visible = l.backgroundvisible,
+    bg = poly!(blockscene, ibbox, color = backgroundcolor, visible = l.backgroundvisible,
                strokecolor = strokecolor_with_visibility, strokewidth = l.strokewidth,
                inspectable = false)
     translate!(bg, 0, 0, -10) # move behind text

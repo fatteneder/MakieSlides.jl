@@ -85,7 +85,7 @@ add_slide!(pres) do fig
     Label(fig[1, 1], "Example code block", textsize = 40, tellwidth=false)
     FormattedCodeblock(fig[2, 1], md"""
     ```julia
-    # by Lazaro Alonso - BeautfiulMakie.jl
+    # by Lazaro Alonso - BeautifulMakie
     let
         x = 0:0.05:1
         y = x .^ 2
@@ -122,7 +122,7 @@ add_slide!(pres) do fig
 - [x] Automatic line wrapping
 - [x] Itemizations and enumerations
 - [x] Tables
-- [ ] Code blocks
+- [x] Code blocks with syntax highlighting
 - [ ] InlineCode
 - [ ] Headings
 - [ ] Horizontal dividers
