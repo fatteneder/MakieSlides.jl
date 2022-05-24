@@ -1,16 +1,13 @@
 @Block FormattedTable begin
     @forwarded_layout
-    # sliders::Vector{Slider}
-    # valuelabels::Vector{Label}
-    # labels::Vector{Label}
     @attributes begin
         "The displayed markdown list."
-        md_table = md"""
+        table = first(md"""
             | Column One | Column Two | Column Three |
             |:---------- | ---------- |:------------:|
             | Row 1      | Column 2   |              |
             | Row 2      | Row 2      | Column 3     |
-        """
+        """.content)
         "Controls if the text is visible."
         visible::Bool = true
         "The color of the text."
@@ -59,7 +56,14 @@
 end
 
 
-FormattedTable(x, text; kwargs...) = FormattedTable(x, md_table = text; kwargs...)
+function FormattedTable(x, md::Markdown.MD; kwargs...)
+    table = first(md.content)
+    if !(element isa Markdown.Table)
+        error("Failed to extract markdown table.")
+    end
+    FormattedTable(x, table; kwargs...)
+end
+FormattedTable(x, table; kwargs...) = FormattedTable(x, table = table; kwargs...)
 
 
 const MARKDOWN_TO_MAKIE_HALIGNS = Dict(:l => :left, :c => :center, :r => :right)
@@ -73,7 +77,7 @@ function initialize_block!(l::FormattedTable)
         vis ? col : RGBAf(0, 0, 0, 0)
     end
 
-    table = l.md_table[].content[1]
+    table = l.table[]
     halign_cells = map(a -> MARKDOWN_TO_MAKIE_HALIGNS[a], table.align)
     rows = table.rows
     n_rows, n_cols = length(rows), length(halign_cells)

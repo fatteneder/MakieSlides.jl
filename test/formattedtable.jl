@@ -41,8 +41,6 @@ md = md"""
 | Central | Kivell   | Desk   |       5|  125.00   |    625.00 |
 """
 
-tbl = md.content[1]
-
-FormattedTable(f[1,1], md_table=md)
+@time fmttbl = FormattedTable(f[1,1], md)
 
 f
