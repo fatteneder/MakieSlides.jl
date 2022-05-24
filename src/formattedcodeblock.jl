@@ -80,9 +80,9 @@ function initialize_block!(l::FormattedCodeblock)
         pygstyler = pygments_styles.get_style_by_name(string(style))
     end
 
-    all_lexers = Symbol.(first.(lowercase.(collect(pygments_lexers.get_all_lexers()))))
+    all_lexers = lowercase.(first.(collect(pygments_lexers.get_all_lexers())))
     pyglexer = lift(l.language) do lang
-        if !(lang in all_lexers)
+        if !(string(lang) in all_lexers)
             @warn "Language '$lang' not supported, using julia."
             lang = :julia
             l.language[] = lang
@@ -90,12 +90,12 @@ function initialize_block!(l::FormattedCodeblock)
         pyglexer = pygments_lexers.get_lexer_by_name(string(lang))
     end
 
-    backgroundcolor = lift(pygstyler, code) do styler
+    backgroundcolor = lift(pygstyler) do styler
         parse(RGBAf, styler.background_color)
     end
 
     code = lift(l.code) do code
-        code.text
+        code.code
     end
 
     fmtcode = formattedcode!(
