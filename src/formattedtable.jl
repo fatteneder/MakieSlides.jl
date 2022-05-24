@@ -58,7 +58,7 @@ end
 
 function FormattedTable(x, md::Markdown.MD; kwargs...)
     table = first(md.content)
-    if !(element isa Markdown.Table)
+    if !(table isa Markdown.Table)
         error("Failed to extract markdown table.")
     end
     FormattedTable(x, table; kwargs...)
