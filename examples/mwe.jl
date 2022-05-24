@@ -108,10 +108,26 @@ end
 
 add_slide!(pres) do fig
     Label(fig[1, 1], "MarkdownBox Example", textsize = 40, tellwidth=false)
-    Box(fig[2, 1], visible = false) # Spacer
-    MarkdownBox(fig[3, 1], """
-    Some text with **emphasis**
-    """)
+    MarkdownBox(fig[2, 1], md"""
+
+## What is a MarkdownBox?
+
+MarkdownBox allows you to use standard Markdown syntax to fill your slides with
+content. So far we support
+- Lists
+- Enumerations
+- Tables
+- Codeblocks
+- Headings
+
+## Example
+
+```
+GLMakie
+GLMakie.activate!()
+```
+
+""")
 end
 
 add_slide!(pres) do fig

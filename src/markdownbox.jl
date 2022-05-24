@@ -43,6 +43,8 @@
         backgroundcolor::RGBAf = RGBf(0.9, 0.9, 0.9)
         "The syntax highlighting theme."
         codestyle::Symbol = :material
+        "The code language."
+        language::Symbol = :julia
         "The @printf pattern to format enumeration items"
         enumeration_pattern = "%i)"
         "The symbol for itemization items"
@@ -123,7 +125,8 @@ function render_element(md::Markdown.Code, l::MarkdownBox, idx)
                    width = l.width, height = l.height,
                    alignmode = l.alignmode,
                    backgroundvisible = true,
-                   codestyle = l.codestyle)
+                   codestyle = l.codestyle,
+                   language = l.language)
 end
 
 
@@ -140,8 +143,7 @@ function render_element(md::Markdown.List, l::MarkdownBox, idx)
                    backgroundvisible = true,
                    backgroundcolor = l.backgroundcolor,
                    enumeration_pattern = l.enumeration_pattern,
-                   itemization_symbol = l.itemization_symbol
-                   )
+                   itemization_symbol = l.itemization_symbol)
 end
 
 
