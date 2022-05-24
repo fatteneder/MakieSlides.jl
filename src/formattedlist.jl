@@ -12,7 +12,7 @@
         "The color of the text."
         color::RGBAf = inherit(scene, :textcolor, :black)
         "The font size of the text."
-        textsize::Float32 = inherit(scene, :fontsize, 16f0)
+        textsize::Float32 = inherit(scene, :fontsize, 20f0)
         "The font family of the text."
         font::Makie.FreeTypeAbstraction.FTFont = inherit(scene, :font, "DejaVu Sans")
         "The justification of the text (:left, :right, :center)."
