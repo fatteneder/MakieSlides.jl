@@ -2,13 +2,13 @@
     @forwarded_layout
     @attributes begin
         "The displayed text string."
-        code::Markdown.MD = md"""
+        code::Markdown.Code = first(md"""
             ```julia
             function main()
                 println("Hello, world!")
             end
             ```
-            """
+            """.content)
         "Controls if the text is visible."
         visible::Bool = true
         "The color of the text."
@@ -51,6 +51,13 @@
 end
 
 
+function FormattedCodeblock(x, md::Markdown.MD; kwargs...)
+    code = first(md.content)
+    if !(code isa Markdown.Code)
+        error("Failed to extract code snippet.")
+    end
+    FormattedCodeblock(x, code; kwargs...)
+end
 FormattedCodeblock(x, code; kwargs...) = FormattedCodeblock(x, code = code; kwargs...)
 
 
@@ -60,12 +67,6 @@ function initialize_block!(l::FormattedCodeblock)
 
     textpos = Observable(Point3f(0, 0, 0))
     textbb = Ref(BBox(0, 1, 0, 1))
-
-    code = first(l.code[].content)
-    if !(code isa Markdown.Code)
-        error("Failed to extract code snippet. Make sure your Markdown only contains a single \
-              ``` ... ``` block.")
-    end
 
     all_styles = Symbol.(collect(pygments_styles.get_all_styles()))
 
@@ -82,9 +83,8 @@ function initialize_block!(l::FormattedCodeblock)
         parse(RGBAf, styler.background_color)
     end
 
-    # the text
     fmtcode = formattedcode!(
-        blockscene, code, position = textpos, textsize = l.textsize, 
+        blockscene, l.code, position = textpos, textsize = l.textsize,
         font = l.font, visible = l.visible, align = (:left, :top), 
         rotation = l.rotation, markerspace = :data, justification = :left,
         lineheight = l.lineheight, inspectable = false, pygstyler = pygstyler

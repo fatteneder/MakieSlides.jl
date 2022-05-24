@@ -19,6 +19,11 @@ using Makie.MakieLayout
 import Makie.MakieLayout: @Block, inherit, round_to_IRect2D, initialize_block!
 
 
+# Resolve method ambiguity. Remove ASAP with next Makie update.
+Makie.MakieLayout.convert_for_attribute(t::Type{Makie.FreeTypeAbstraction.FTFont},
+                            x::Makie.FreeTypeAbstraction.FTFont) = to_font(x)
+
+
 export Presentation, add_slide!, reset!, save
 export formattedtext, formattedtext!
 export FormattedLabel, FormattedList, FormattedTable, MarkdownBox, FormattedCodeblock
