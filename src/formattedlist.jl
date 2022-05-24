@@ -2,7 +2,7 @@
     @forwarded_layout
     @attributes begin
         "The displayed markdown list."
-        md_list = md"""
+        list = md"""
             - item 1
             - item 2
             - item 3
@@ -55,7 +55,14 @@
 end
 
 
-FormattedList(x, text; kwargs...) = FormattedList(x, md_list = text; kwargs...)
+function FormattedList(x, md::Markdown.MD; kwargs...)
+    list = first(md.content)
+    if !(list isa Markdown.List)
+
+    end
+    FormattedList(x, list; kwargs...)
+end
+FormattedList(x, list; kwargs...) = FormattedList(x, list = list; kwargs...)
 
 
 function initialize_block!(l::FormattedList)
@@ -69,8 +76,7 @@ function initialize_block!(l::FormattedList)
     #     string(item_symbol[1:offset-1], '\\', item_symbol[offset:end])
     # end
 
-    list = l.md_list[].content[]
-    items, ordered = list.items, list.ordered
+    items, ordered = l.list[].items, l.list[].ordered
     symbol = if ordered < 0
         i -> item_symbol
     else
