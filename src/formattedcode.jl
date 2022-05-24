@@ -20,12 +20,27 @@ Plots syntax highlighted code.
         offset = (0.0, 0.0),
         inspectable = theme(scene, :inspectable),
         pygstyler = pygments_styles.get_style_by_name("friendly"),
+        pyglexer = pygments_lexers.get_lexer_by_name("julia"),
         maxwidth = 0.0
     )
 end
 
 
 function Makie.plot!(plot::FormattedCode{<:Tuple{<:Markdown.Code}})
+    code, lang = plot.code[].code, plot.code[].language
+    all_lexers = lowercase.(first.(collect(pygments_lexers.get_all_lexers())))
+    if !(lang in all_lexers)
+        @warn "Language '$lang' not supported, using julia."
+        lang = :julia
+    end
+    pyglexer = pygments_lexers.get_lexer_by_name(lang)
+    attrs = plot.attributes
+    attrs[:pyglexer] = pyglexer
+    formattedcode!(plot, code; attrs...)
+end
+
+
+function Makie.plot!(plot::FormattedCode{<:Tuple{<:AbstractString}})
 
     default_textsize = plot.textsize[]
 
@@ -34,9 +49,10 @@ function Makie.plot!(plot::FormattedCode{<:Tuple{<:Markdown.Code}})
     # We iteratively shrink it starting from plot.textsize.
     settled_on_textsize = false
 
-    glyphcollection = lift(plot.code, plot.textsize, plot.font, plot.align,
+    glyphcollection = lift(plot.code, plot.pygstyler, plot.pyglexer,
+            plot.textsize, plot.font, plot.align,
             plot.rotation, plot.justification, plot.lineheight, plot.strokecolor,
-            plot.strokewidth) do code, ts, f, al, rot, jus, lh, scol, swi
+            plot.strokewidth) do code, styler, lexer, ts, f, al, rot, jus, lh, scol, swi
 
         if settled_on_textsize
             # any update requires us to restart the textsize iteration
@@ -49,7 +65,7 @@ function Makie.plot!(plot::FormattedCode{<:Tuple{<:Markdown.Code}})
         rot = to_rotation(rot)
         scol = to_color(scol)
 
-        layout_code(code, plot.pygstyler[], ts, f, al, rot, jus, lh, scol, swi)
+        layout_code(code, styler, lexer, ts, f, al, rot, jus, lh, scol, swi)
     end
 
     onany(glyphcollection, plot.maxwidth) do glc, maxwidth
@@ -69,6 +85,7 @@ function Makie.plot!(plot::FormattedCode{<:Tuple{<:Markdown.Code}})
 
     text_attributes = copy(plot.attributes)
     delete!(text_attributes, :pygstyler)
+    delete!(text_attributes, :pyglexer)
     text!(plot, glyphcollection; text_attributes...)
 
     plot
@@ -100,7 +117,7 @@ Compute a GlyphCollection for a `string` given textsize, font, align, rotation, 
 justification, and lineheight.
 """
 function layout_code(
-        md_code::Markdown.Code, pygstyler, textsize::Union{AbstractVector, Number},
+        code, pygstyler, pyglexer, textsize::Union{AbstractVector, Number},
         font, align, rotation, justification, lineheight, strokecolor, strokewidth
     )
 
@@ -112,9 +129,7 @@ function layout_code(
     textsizeperchar = Any[]
     colorperchar    = Any[]
 
-    code, lang = md_code.code, md_code.language
-    pylexer    = pygments_lexers.get_lexer_by_name(lang)
-    tokens     = pylexer.get_tokens(code)
+    tokens     = pyglexer.get_tokens(code)
     for (token, token_string) in tokens
         token_pygstyle = pygstyler.style_for_token(token)
         color          = color_from_pygstyle(token_pygstyle)

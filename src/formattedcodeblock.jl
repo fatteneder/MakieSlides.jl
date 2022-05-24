@@ -47,6 +47,8 @@
         strokecolor::RGBAf = RGBf(0, 0, 0)
         "The syntax highlighting theme."
         codestyle::Symbol = :material
+        "The code language."
+        language::Symbol = :julia
     end
 end
 
@@ -69,7 +71,6 @@ function initialize_block!(l::FormattedCodeblock)
     textbb = Ref(BBox(0, 1, 0, 1))
 
     all_styles = Symbol.(collect(pygments_styles.get_all_styles()))
-
     pygstyler = lift(l.codestyle) do style
         if !(style in all_styles)
             @warn "Could not find style '$style', using friendly."
@@ -79,15 +80,30 @@ function initialize_block!(l::FormattedCodeblock)
         pygstyler = pygments_styles.get_style_by_name(string(style))
     end
 
-    backgroundcolor = lift(pygstyler) do styler
+    all_lexers = Symbol.(first.(lowercase.(collect(pygments_lexers.get_all_lexers()))))
+    pyglexer = lift(l.language) do lang
+        if !(lang in all_lexers)
+            @warn "Language '$lang' not supported, using julia."
+            lang = :julia
+            l.language[] = lang
+        end
+        pyglexer = pygments_lexers.get_lexer_by_name(string(lang))
+    end
+
+    backgroundcolor = lift(pygstyler, code) do styler
         parse(RGBAf, styler.background_color)
     end
 
+    code = lift(l.code) do code
+        code.text
+    end
+
     fmtcode = formattedcode!(
-        blockscene, l.code, position = textpos, textsize = l.textsize,
+        blockscene, code, position = textpos, textsize = l.textsize,
         font = l.font, visible = l.visible, align = (:left, :top), 
         rotation = l.rotation, markerspace = :data, justification = :left,
-        lineheight = l.lineheight, inspectable = false, pygstyler = pygstyler
+        lineheight = l.lineheight, inspectable = false,
+        pygstyler = pygstyler, pyglexer = pyglexer
     )
 
     onany(layoutobservables.computedbbox, l.padding, l.halign, l.valign) do bbox, 
