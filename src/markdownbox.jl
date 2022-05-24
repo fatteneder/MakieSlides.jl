@@ -8,11 +8,15 @@
         "The color of the text."
         color::RGBAf = inherit(scene, :textcolor, :black)
         "The font size of the text."
-        textsize::Float32 = inherit(scene, :fontsize, 16f0)
+        textsize::Float32 = inherit(scene, :fontsize, 20f0)
+        "The font size of the headers."
+        header_textsize::Vector{Float32} = [ 40f0, 36f0, 32f0, 28f0, 25f0, 22f0 ]
         "The font family of the text."
         font::Makie.FreeTypeAbstraction.FTFont = inherit(scene, :font, "DejaVu Sans")
         "The justification of the text (:left, :right, :center)."
         justification = :left
+        "The justification of the headers (:left, :right, :center)."
+        header_justification = :center
         "The lineheight multiplier for the text."
         lineheight::Float32 = 1.0
         "The vertical alignment of the text in its suggested boundingbox"
@@ -37,6 +41,8 @@
         backgroundvisible::Bool = false
         "The color of the background. "
         backgroundcolor::RGBAf = RGBf(0.9, 0.9, 0.9)
+        "The syntax highlighting theme."
+        codestyle::Symbol = :material
     end
 end
 
@@ -45,16 +51,84 @@ MarkdownBox(x, text::AbstractString; kwargs...) = MarkdownBox(x, text = Markdown
 MarkdownBox(x, text::Markdown.MD; kwargs...) = MarkdownBox(x, text = text; kwargs...)
 
 
+header_level(h::Markdown.Header{T}) where T = T
+
+
+function render_element(md::Markdown.Header, l::MarkdownBox, idx)
+    lvl = header_level(md)
+    textsize = if lvl <= 6
+        l.header_textsize[][lvl]
+    else
+        l.textsize
+    end
+    text = Markdown.Paragraph(md.text)
+    FormattedLabel(l.layout[idx,1], text = text,
+                   visible = l.visible, color = l.color,
+                   textsize = textsize, font = l.font,
+                   hjustify = l.header_justification, vjustify = :top,
+                   lineheight = l.lineheight,
+                   rotation = l.rotation, padding = l.padding,
+                   halign = :center, valign = :top,
+                   tellwidth = true, tellheight = false,
+                   width = l.width, height = l.height,
+                   alignmode = l.alignmode,
+                   backgroundvisible = l.backgroundvisible,
+                   backgroundcolor = l.backgroundcolor)
+end
+
+
+function render_element(md::Markdown.Paragraph, l::MarkdownBox, idx)
+    FormattedLabel(l.layout[idx,1], md,
+                   visible = l.visible, color = l.color,
+                   textsize = l.textsize, font = l.font,
+                   hjustify = l.justification, vjustify = :top,
+                   lineheight = l.lineheight,
+                   rotation = l.rotation, padding = l.padding,
+                   halign = :left, valign = :top,
+                   tellwidth = true, tellheight = false,
+                   width = l.width, height = l.height,
+                   alignmode = l.alignmode,
+                   backgroundvisible = l.backgroundvisible,
+                   backgroundcolor = l.backgroundcolor)
+end
+
+
+function render_element(md::Markdown.Table, l::MarkdownBox, idx)
+    FormattedTable(l.layout[idx,1], md,
+                   visible = l.visible, color = l.color,
+                   textsize = l.textsize, font = l.font,
+                   lineheight = l.lineheight,
+                   rotation = l.rotation, padding = l.padding,
+                   halign = :left, valign = :top,
+                   tellwidth = true, tellheight = false,
+                   width = l.width, height = l.height,
+                   alignmode = l.alignmode,
+                   backgroundvisible = l.backgroundvisible,
+                   backgroundcolor = l.backgroundcolor)
+end
+
+
+function render_element(md::Markdown.Code, l::MarkdownBox, idx)
+    FormattedCodeblock(l.layout[idx,1], md,
+                   visible = l.visible, color = l.color,
+                   textsize = l.textsize, font = l.font,
+                   lineheight = l.lineheight,
+                   rotation = l.rotation,
+                   halign = :left, valign = :top,
+                   tellwidth = true, tellheight = false,
+                   width = l.width, height = l.height,
+                   alignmode = l.alignmode,
+                   backgroundvisible = true,
+                   codestyle = l.codestyle)
+end
+
+
 function initialize_block!(l::MarkdownBox)
     blockscene = l.blockscene
     layoutobservables = l.layoutobservables
 
     for (idx, md_element) in enumerate(l.text[].content)
-        FormattedLabel(l.layout[idx, 1], text = md_element,
-                       halign = :left, valign = :top,
-                       tellwidth = true, tellheight = true,
-                       backgroundvisible = l.backgroundvisible,
-                       backgroundcolor = l.backgroundcolor)
+        render_element(md_element, l, idx)
     end
     l.layout[end, 1] = Box(blockscene, tellheight=false, visible=l.backgroundvisible,
                              color=l.backgroundcolor)
