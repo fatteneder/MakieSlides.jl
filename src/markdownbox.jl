@@ -43,6 +43,10 @@
         backgroundcolor::RGBAf = RGBf(0.9, 0.9, 0.9)
         "The syntax highlighting theme."
         codestyle::Symbol = :material
+        "The @printf pattern to format enumeration items"
+        enumeration_pattern = "%i)"
+        "The symbol for itemization items"
+        itemization_symbol = "•"
     end
 end
 
@@ -120,6 +124,24 @@ function render_element(md::Markdown.Code, l::MarkdownBox, idx)
                    alignmode = l.alignmode,
                    backgroundvisible = true,
                    codestyle = l.codestyle)
+end
+
+
+function render_element(md::Markdown.List, l::MarkdownBox, idx)
+    FormattedList(l.layout[idx,1], md,
+                   visible = l.visible, color = l.color,
+                   textsize = l.textsize, font = l.font,
+                   lineheight = l.lineheight,
+                   rotation = l.rotation,
+                   halign = :left, valign = :top,
+                   tellwidth = true, tellheight = false,
+                   width = l.width, height = l.height,
+                   alignmode = l.alignmode,
+                   backgroundvisible = true,
+                   backgroundcolor = l.backgroundcolor,
+                   enumeration_pattern = l.enumeration_pattern,
+                   itemization_symbol = l.itemization_symbol
+                   )
 end
 
 

@@ -29,22 +29,22 @@ mdbox = MarkdownBox(f[1,2], md"""
 
 ## What about some code?
 
-```python
-from typing import Iterator
+```julia
+# BeautifulAlgorithms.jl
 
-# This is an example
-class Math:
-    @staticmethod
-    def fib(n: int) -> Iterator[int]:
-        \""" Fibonacci series up to n \"""
-        a, b = 0, 1
-        while a < n:
-            yield a
-            a, b = b, a + b
-
-result = sum(Math.fib(42))
-print("The answer is {}".format(result))
+# Bogo Sort
+function bogo_sort!(X)
+    while !issorted(X)
+        shuffle!(X)
+    end
+end
 ```
+
+## Shopping list
+
+- Cookies
+- Milk
+- Bananas
 """)
 
 f
