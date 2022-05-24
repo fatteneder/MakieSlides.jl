@@ -123,8 +123,16 @@ content. So far we support
 ## Example
 
 ```
-GLMakie
+using GLMakie
 GLMakie.activate!()
+
+f = Figure()
+MarkdownBox(fig[1,1], md\"""
+Here goes your markdown text, e.g. a shopping list with
+- milk
+- cookies
+- bananas
+\"""
 ```
 
 """)
