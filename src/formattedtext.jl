@@ -246,11 +246,7 @@ function layout_formatted_text(
         end
 
         # TODO emojis should be replaced before layouting the whole text
-        for m in eachmatch(RGX_EMOJI, textelement_string)
-            emoji = first(m.captures)
-            textelement_string = replace(textelement_string, ":$(emoji):" => EMOJIS[emoji])
-        end
-
+        texelement_string = replace_emojis(texelement_string)
         scanned_position += textelement_length
         string = string * textelement_string
 
