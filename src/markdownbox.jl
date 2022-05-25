@@ -49,6 +49,8 @@
         enumeration_pattern = "%i)"
         "The symbol for itemization items"
         itemization_symbol = "•"
+        "The horizontal divider's lineheight multiplier for the text."
+        divider_color::RGBAf = :lightgray
     end
 end
 
@@ -147,6 +149,15 @@ function render_element(md::Markdown.List, l::MarkdownBox, idx)
 end
 
 
+
+function render_element(md::Markdown.HorizontalRule, l::MarkdownBox, idx)
+    ax = Axis(l.layout[idx,1], height=l.textsize)
+    hidespines!(ax)
+    hidedecorations!(ax)
+    lines!(ax, [-1,1], [0,0], color=l.divider_color)
+end
+
+
 function initialize_block!(l::MarkdownBox)
     blockscene = l.blockscene
     layoutobservables = l.layoutobservables
@@ -159,7 +170,10 @@ function initialize_block!(l::MarkdownBox)
 
     layoutobservables.suggestedbbox[] = layoutobservables.suggestedbbox[]
 
-    rowgap!(l.layout, 0)
+    on(l.textsize) do ts
+        rowgap!(l.layout, ts)
+    end
+    notify(l.textsize)
 
     return l
 end

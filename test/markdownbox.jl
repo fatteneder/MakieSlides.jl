@@ -27,7 +27,11 @@ layoutable FormattedLabel objects into a MarkdownBox.
 mdbox = MarkdownBox(f[1,2], md"""
 # Testbox2
 
+----
+
 ## What about some code?
+
+---
 
 ```julia
 # BeautifulAlgorithms.jl
@@ -40,7 +44,11 @@ function bogo_sort!(X)
 end
 ```
 
+---
+
 ## Shopping list
+
+---
 
 - Cookies
 - Milk

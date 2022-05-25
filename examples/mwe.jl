@@ -107,8 +107,8 @@ add_slide!(pres) do fig
 end
 
 add_slide!(pres) do fig
-    Label(fig[1, 1], "MarkdownBox Example", textsize = 40, tellwidth=false)
-    MarkdownBox(fig[2, 1], md"""
+    MarkdownBox(fig[1, 1], md"""
+# MarkdownBox
 
 ## What is a MarkdownBox?
 
@@ -119,6 +119,8 @@ content. So far we support
 - Tables
 - Codeblocks
 - Headings
+
+---
 
 ## Example
 
@@ -147,9 +149,9 @@ add_slide!(pres) do fig
 - [x] Itemizations and enumerations
 - [x] Tables
 - [x] Code blocks with syntax highlighting
+- [x] Headings
+- [x] Horizontal dividers
 - [ ] InlineCode
-- [ ] Headings
-- [ ] Horizontal dividers
 - [ ] Equations
 - [ ] Links
 - [ ] Headers/Footers/citations
@@ -162,6 +164,7 @@ end
 # Move to first slide
 reset!(pres)
 
-# save pdf
-thisdir = basename(@__DIR__)
-MakieSlides.save(joinpath(thisdir, "presentation.pdf"), pres)
+# # save pdf
+# thisdir = basename(@__DIR__)
+# MakieSlides.save(joinpath(thisdir, "presentation.pdf"), pres)
+
