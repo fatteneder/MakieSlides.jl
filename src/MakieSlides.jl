@@ -4,6 +4,7 @@ module MakieSlides
 using CairoMakie
 using Colors
 using GLMakie
+using LaTeXStrings
 using Makie
 using Markdown
 using Printf

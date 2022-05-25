@@ -151,9 +151,10 @@ add_slide!(pres) do fig
 - [x] Code blocks with syntax highlighting
 - [x] Headings
 - [x] Horizontal dividers
-- [ ] InlineCode
-- [ ] Equations
+- [x] Equations
 - [ ] Links
+- [ ] Inline code
+- [ ] Inline equations
 - [ ] Headers/Footers/citations
 - [ ] Emojis
 - [ ] More stylized fonts, e.g. underline and strikethrough

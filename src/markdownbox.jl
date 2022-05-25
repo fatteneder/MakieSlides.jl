@@ -158,6 +158,13 @@ function render_element(md::Markdown.HorizontalRule, l::MarkdownBox, idx)
 end
 
 
+function render_element(md::Markdown.LaTeX, l::MarkdownBox, idx)
+    latex = latexstring(strip(md.formula))
+    Label(l.layout[idx,1], latex, color=l.color, textsize=l.textsize,
+          padding=l.padding, rotation=l.rotation, tellwidth=false, tellheight=false)
+end
+
+
 function initialize_block!(l::MarkdownBox)
     blockscene = l.blockscene
     layoutobservables = l.layoutobservables

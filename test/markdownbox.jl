@@ -22,6 +22,12 @@ layoutable FormattedLabel objects into a MarkdownBox.
 | East    | Jones    | Pencil |      95|  1.99     |    189.05 |
 | Central | Kivell   | Binder |      50|  19.99    |    999.50 |
 | Central | Jardine  | Pencil |      36|  4.99     |    179.64 |
+
+# Wanna do some math?
+
+```math
+  G_{\mu\nu} = \frac{8 \pi G}{c^4} T_{\mu\nu}
+```
 """)
 
 mdbox = MarkdownBox(f[1,2], md"""
