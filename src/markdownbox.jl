@@ -151,10 +151,9 @@ end
 
 
 function render_element(md::Markdown.HorizontalRule, l::MarkdownBox, idx)
-    ax = Axis(l.layout[idx,1], height=l.textsize)
-    hidespines!(ax)
-    hidedecorations!(ax)
-    lines!(ax, [-1,1], [0,0], color=l.divider_color)
+    lsc = LScene(l.layout[idx, 1]; height = l.textsize, show_axis = false)
+    update_cam!(lsc.scene, Makie.campixel!)
+    lines!(lsc.scene, Point2f[(-1,0), (1,0)]; space = :clip)
 end
 
 
