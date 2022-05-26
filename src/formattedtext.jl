@@ -246,7 +246,7 @@ function layout_formatted_text(
         end
 
         # TODO emojis should be replaced before layouting the whole text
-        texelement_string = replace_emojis(texelement_string)
+        textelement_string = replace_emojis(textelement_string)
         scanned_position += textelement_length
         string = string * textelement_string
 
