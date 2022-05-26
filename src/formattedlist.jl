@@ -3,6 +3,7 @@
     @attributes begin
         "The displayed markdown list."
         list = md"""
+
             - item 1
             - item 2
             - item 3
@@ -88,41 +89,20 @@ function initialize_block!(l::FormattedList)
     for (idx, item) in enumerate(items)
         # fmtlbl = FormattedLabel(fig_or_scene, text=symbol(idx), halign=:left, valign=:top)
         # using Label for now, because FormattedLabel promotes strings to Markdown.MD and
-        # symbols like "1." would be parsed as Markdown.Lists, but the underlyinig 
+        # symbols like "1." would be parsed as Markdown.Lists, but the underlying
         # formattedtext only works with Markdown.Paragraphs
-        lbl = Label(blockscene, text=symbol(idx), halign=:left, valign=:top)
+        lbl = Label(blockscene, text=symbol(idx), halign=:left, valign=:center)
         push!(symbol_labels, lbl)
         l.layout[idx, 1] = lbl
         l.layout[idx, 2] = FormattedLabel(blockscene, text=first(item),
-                                          halign=:left, valign=:top, tellwidth=false,
+                                          halign=:left, valign=:top,
+                                          tellwidth=false, tellheight=l.tellheight,
                                           textsize=l.textsize, font=l.font,
                                           lineheight=l.lineheight, rotation=l.rotation)
     end
 
-    label_fillbox = Box(blockscene, width=Fixed(1000.0 #= will be adjusted below=#), visible=false)
-    text_fillbox  = Box(blockscene, visible=false)
-    l.layout[length(items)+1, 1] = label_fillbox
-    l.layout[length(items)+1, 2] = text_fillbox
-
-    # fix width of label_fillbox to maximum width of list symbols
-    on(label_fillbox.layoutobservables.computedbbox) do bbox
-        current_w = label_fillbox.width[].x
-        max_w = 0.0
-        for lbl in symbol_labels
-            textbb = Rect2f(boundingbox(lbl.blockscene.plots[1]))
-            tw = width(textbb)
-            if max_w < tw; max_w = tw; end
-        end
-        if max_w != current_w
-            label_fillbox.width[] = Fixed(max_w)
-        end
-    end
-
-    label_fillbox.layoutobservables.suggestedbbox[] = 
-        label_fillbox.layoutobservables.suggestedbbox[]
-
-    rowgap!(l.layout, 5)
-    colgap!(l.layout, 5)
+    rowgap!(l.layout, 0.5*l.textsize[])
+    colgap!(l.layout, 0.5*l.textsize[])
 
     return l
 end
