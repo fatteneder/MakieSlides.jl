@@ -1,8 +1,13 @@
 @Block MarkdownBox begin
     @forwarded_layout
     @attributes begin
-        "The displayed text string."
-        text = "Text"
+        "The displayed Markdown block."
+        md::Markdown.MD = md"""
+
+        # MarkdownBox
+
+        Deliver content with ease :smile:
+        """
         "Controls if the text is visible."
         visible::Bool = true
         "The color of the text."
@@ -55,8 +60,8 @@
 end
 
 
-MarkdownBox(x, text::AbstractString; kwargs...) = MarkdownBox(x, text = Markdown.parse(text); kwargs...)
-MarkdownBox(x, text::Markdown.MD; kwargs...) = MarkdownBox(x, text = text; kwargs...)
+MarkdownBox(x, md::AbstractString; kwargs...) = MarkdownBox(x, md = Markdown.parse(text); kwargs...)
+MarkdownBox(x, md::Markdown.MD; kwargs...) = MarkdownBox(x, md = md; kwargs...)
 
 
 header_level(h::Markdown.Header{T}) where T = T
@@ -164,12 +169,16 @@ function render_element(md::Markdown.LaTeX, scene, l::MarkdownBox)
 end
 
 
+function render_element(md, scene, l::MarkdownBox)
+    error("MarkdownBox: Cannot render Markdown elements of type '$(typeof(md))'")
+end
+
+
 function initialize_block!(l::MarkdownBox)
     blockscene = l.blockscene
     layoutobservables = l.layoutobservables
 
-    for (idx, md_element) in enumerate(l.text[].content)
-        display(md_element)
+    for (idx, md_element) in enumerate(l.md[].content)
         l.layout[idx,1] = render_element(md_element, blockscene, l)
     end
     l.layout[end, 1] = Box(blockscene, tellheight=false, visible=false,
