@@ -62,7 +62,7 @@ MarkdownBox(x, text::Markdown.MD; kwargs...) = MarkdownBox(x, text = text; kwarg
 header_level(h::Markdown.Header{T}) where T = T
 
 
-function render_element(md::Markdown.Header, l::MarkdownBox, idx)
+function render_element(md::Markdown.Header, scene, l::MarkdownBox)
     lvl = header_level(md)
     textsize = if lvl <= 6
         l.header_textsize[][lvl]
@@ -70,7 +70,7 @@ function render_element(md::Markdown.Header, l::MarkdownBox, idx)
         l.textsize
     end
     text = Markdown.Paragraph(md.text)
-    FormattedLabel(l.layout[idx,1], text = text,
+    FormattedLabel(scene, text = text,
                    visible = l.visible, color = l.color,
                    textsize = textsize, font = l.font,
                    hjustify = l.header_justification, vjustify = :top,
@@ -85,8 +85,8 @@ function render_element(md::Markdown.Header, l::MarkdownBox, idx)
 end
 
 
-function render_element(md::Markdown.Paragraph, l::MarkdownBox, idx)
-    FormattedLabel(l.layout[idx,1], md,
+function render_element(md::Markdown.Paragraph, scene, l::MarkdownBox)
+    FormattedLabel(scene, md,
                    visible = l.visible, color = l.color,
                    textsize = l.textsize, font = l.font,
                    hjustify = l.justification, vjustify = :top,
@@ -101,8 +101,8 @@ function render_element(md::Markdown.Paragraph, l::MarkdownBox, idx)
 end
 
 
-function render_element(md::Markdown.Table, l::MarkdownBox, idx)
-    FormattedTable(l.layout[idx,1], md,
+function render_element(md::Markdown.Table, scene, l::MarkdownBox)
+    FormattedTable(scene, md,
                    visible = l.visible, color = l.color,
                    textsize = l.textsize, font = l.font,
                    lineheight = l.lineheight,
@@ -116,8 +116,8 @@ function render_element(md::Markdown.Table, l::MarkdownBox, idx)
 end
 
 
-function render_element(md::Markdown.Code, l::MarkdownBox, idx)
-    FormattedCodeblock(l.layout[idx,1], md,
+function render_element(md::Markdown.Code, scene, l::MarkdownBox)
+    FormattedCodeblock(scene, md,
                    visible = l.visible, color = l.color,
                    textsize = l.textsize, font = l.font,
                    lineheight = l.lineheight,
@@ -132,8 +132,8 @@ function render_element(md::Markdown.Code, l::MarkdownBox, idx)
 end
 
 
-function render_element(md::Markdown.List, l::MarkdownBox, idx)
-    FormattedList(l.layout[idx,1], md,
+function render_element(md::Markdown.List, scene, l::MarkdownBox)
+    FormattedList(scene, md,
                    visible = l.visible, color = l.color,
                    textsize = l.textsize, font = l.font,
                    lineheight = l.lineheight,
@@ -149,17 +149,17 @@ function render_element(md::Markdown.List, l::MarkdownBox, idx)
 end
 
 
-
-function render_element(md::Markdown.HorizontalRule, l::MarkdownBox, idx)
-    lsc = LScene(l.layout[idx, 1]; height = l.textsize, show_axis = false, tellheight=true)
+function render_element(md::Markdown.HorizontalRule, scene, l::MarkdownBox)
+    lsc = LScene(scene; height = l.textsize, show_axis = false, tellheight=true)
     update_cam!(lsc.scene, Makie.campixel!)
     lines!(lsc.scene, Point2f[(-1,0), (1,0)]; space = :clip, color=l.divider_color)
+    lsc
 end
 
 
-function render_element(md::Markdown.LaTeX, l::MarkdownBox, idx)
+function render_element(md::Markdown.LaTeX, scene, l::MarkdownBox)
     latex = latexstring(strip(md.formula))
-    Label(l.layout[idx,1], latex, color=l.color, textsize=l.textsize,
+    Label(scene, latex, color=l.color, textsize=l.textsize,
           padding=l.padding, rotation=l.rotation, tellwidth=false, tellheight=true)
 end
 
@@ -169,7 +169,8 @@ function initialize_block!(l::MarkdownBox)
     layoutobservables = l.layoutobservables
 
     for (idx, md_element) in enumerate(l.text[].content)
-        render_element(md_element, l, idx)
+        display(md_element)
+        l.layout[idx,1] = render_element(md_element, blockscene, l)
     end
     l.layout[end, 1] = Box(blockscene, tellheight=false, visible=false,
                            height=Auto())
