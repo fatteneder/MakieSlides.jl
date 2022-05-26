@@ -4,10 +4,10 @@ using GLMakie
 GLMakie.activate!()
 
 
-f = Figure()
+f = Figure(resolution=(1600,1200))
 
 mdbox = MarkdownBox(f[1,1], md"""
-# Testbox1
+# MarkdownBox 1
 
 ## Hello World!
 This is a first attempt on formatted and layoutable text box with Makie.
@@ -31,7 +31,7 @@ layoutable FormattedLabel objects into a MarkdownBox.
 """)
 
 mdbox = MarkdownBox(f[1,2], md"""
-# Testbox2
+# MarkdownBox 2
 
 ----
 
@@ -56,9 +56,12 @@ end
 
 ---
 
-- Cookies
+- Cookies (I want the special ones with cookies on top of cookies)
 - Milk
 - Bananas
 """)
+
+# Box(f[2,1], visible=false)
+# Box(f[2,2], visible=false)
 
 f

@@ -76,8 +76,8 @@ function render_element(md::Markdown.Header, l::MarkdownBox, idx)
                    hjustify = l.header_justification, vjustify = :top,
                    lineheight = l.lineheight,
                    rotation = l.rotation, padding = l.padding,
-                   halign = :center, valign = :top,
-                   tellwidth = true, tellheight = false,
+                   halign = :center, valign = :center,
+                   tellwidth = false, tellheight = true,
                    width = l.width, height = l.height,
                    alignmode = l.alignmode,
                    backgroundvisible = l.backgroundvisible,
@@ -93,7 +93,7 @@ function render_element(md::Markdown.Paragraph, l::MarkdownBox, idx)
                    lineheight = l.lineheight,
                    rotation = l.rotation, padding = l.padding,
                    halign = :left, valign = :top,
-                   tellwidth = true, tellheight = false,
+                   tellwidth = false, tellheight = true,
                    width = l.width, height = l.height,
                    alignmode = l.alignmode,
                    backgroundvisible = l.backgroundvisible,
@@ -108,7 +108,7 @@ function render_element(md::Markdown.Table, l::MarkdownBox, idx)
                    lineheight = l.lineheight,
                    rotation = l.rotation, padding = l.padding,
                    halign = :left, valign = :top,
-                   tellwidth = true, tellheight = false,
+                   tellwidth = false, tellheight = true,
                    width = l.width, height = l.height,
                    alignmode = l.alignmode,
                    backgroundvisible = l.backgroundvisible,
@@ -123,7 +123,7 @@ function render_element(md::Markdown.Code, l::MarkdownBox, idx)
                    lineheight = l.lineheight,
                    rotation = l.rotation,
                    halign = :left, valign = :top,
-                   tellwidth = true, tellheight = false,
+                   tellwidth = false, tellheight = true,
                    width = l.width, height = l.height,
                    alignmode = l.alignmode,
                    backgroundvisible = true,
@@ -139,7 +139,7 @@ function render_element(md::Markdown.List, l::MarkdownBox, idx)
                    lineheight = l.lineheight,
                    rotation = l.rotation,
                    halign = :left, valign = :top,
-                   tellwidth = true, tellheight = false,
+                   tellwidth = false, tellheight = true,
                    width = l.width, height = l.height,
                    alignmode = l.alignmode,
                    backgroundvisible = true,
@@ -151,7 +151,7 @@ end
 
 
 function render_element(md::Markdown.HorizontalRule, l::MarkdownBox, idx)
-    lsc = LScene(l.layout[idx, 1]; height = l.textsize, show_axis = false)
+    lsc = LScene(l.layout[idx, 1]; height = l.textsize, show_axis = false, tellheight=true)
     update_cam!(lsc.scene, Makie.campixel!)
     lines!(lsc.scene, Point2f[(-1,0), (1,0)]; space = :clip, color=l.divider_color)
 end
@@ -160,7 +160,7 @@ end
 function render_element(md::Markdown.LaTeX, l::MarkdownBox, idx)
     latex = latexstring(strip(md.formula))
     Label(l.layout[idx,1], latex, color=l.color, textsize=l.textsize,
-          padding=l.padding, rotation=l.rotation, tellwidth=false, tellheight=false)
+          padding=l.padding, rotation=l.rotation, tellwidth=false, tellheight=true)
 end
 
 
@@ -171,15 +171,12 @@ function initialize_block!(l::MarkdownBox)
     for (idx, md_element) in enumerate(l.text[].content)
         render_element(md_element, l, idx)
     end
-    l.layout[end, 1] = Box(blockscene, tellheight=false, visible=l.backgroundvisible,
-                             color=l.backgroundcolor)
-
-    layoutobservables.suggestedbbox[] = layoutobservables.suggestedbbox[]
+    l.layout[end, 1] = Box(blockscene, tellheight=false, visible=false,
+                           height=Auto())
 
     on(l.textsize) do ts
         rowgap!(l.layout, ts)
     end
-    notify(l.textsize)
 
     return l
 end
