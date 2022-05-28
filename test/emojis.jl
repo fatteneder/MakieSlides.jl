@@ -5,10 +5,8 @@ GLMakie.activate!()
 
 f = Figure()
 
-fmttxt = formattedtext(f[1,1], ":smile:", textsize=80)
+fmttxt = FormattedLabel(f[1,1], "This is some text that contains an emoji: :smile:")
 
-fmttxt = formattedtext(f[2,1], ":flag-at:", textsize=80,
-                       font=MakieSlides.NativeFont(joinpath(@__DIR__, "..", "assets", "OpenMoji-Color.ttf")))
-                       # font=MakieSlides.NativeFont(joinpath(@__DIR__, "..", "assets", "NotoColorEmoji.ttf")))
+# fmttxt = FormattedLabel(f[2,1], ":flag-at:")
 
 f

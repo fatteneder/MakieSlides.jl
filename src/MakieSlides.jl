@@ -3,11 +3,13 @@ module MakieSlides
 
 using CairoMakie
 using Colors
+using FileIO
 using GLMakie
 using JSON
 using Makie
 using Markdown
 using Printf
+using ZipFile
 import PyCall
 import Cairo
 
@@ -25,6 +27,7 @@ export formattedtext, formattedtext!
 export FormattedLabel, FormattedList, FormattedTable, MarkdownBox, FormattedCodeblock
 
 
+include("utilities.jl")
 include("formattedtext.jl")
 include("formattedlabel.jl")
 include("formattedlist.jl")
@@ -250,8 +253,25 @@ end
 const pygments = PyCall.PyNULL()
 const pygments_lexers = PyCall.PyNULL()
 const pygments_styles = PyCall.PyNULL()
-const EMOJIS = Dict{String,String}()
 const RGX_EMOJI = r":([a-zA-Z0-9_-]+):"
+const EMOJIS_MAP = Dict{String,String}()
+const EMOJIS_PNGPATH = normpath(joinpath(@__DIR__, "..", "assets", "openmoji_png"))
+
+
+function emoji_filename(shorthand::String)
+    !haskey(EMOJIS_MAP, shorthand) && error("Unknown emoji shorthand '$shorthand'")
+    emoji = EMOJIS_MAP[shorthand]
+    unicodes = [ @sprintf "%X" codepoint(c) for c in emoji ]
+    join(unicodes, "-")
+end
+
+emoji_filename_png(shorthand::String) =
+    joinpath(EMOJIS_PNGPATH, emoji_filename(shorthand) * ".png")
+
+function load_emoji_image(filename)
+    img = load(filename)
+    convert.(ARGB{Float32}, img)
+end
 
 
 # Just to make sure
@@ -260,11 +280,11 @@ function __init__()
     copy!(pygments, PyCall.pyimport_conda("pygments", "pygments"))
     copy!(pygments_lexers, PyCall.pyimport_conda("pygments.lexers", "pygments"))
     copy!(pygments_styles, PyCall.pyimport_conda("pygments.styles", "pygments"))
-    copy!(EMOJIS, JSON.parsefile(joinpath(@__DIR__, "..", "assets", "emojis.json")))
-    push!(Makie._alternative_fonts,
-          NativeFont(joinpath(@__DIR__, "..", "assets", "OpenMoji-Color.ttf")))
-    push!(Makie._alternative_fonts,
-          NativeFont(joinpath(@__DIR__, "..", "assets", "NotoColorEmoji.ttf")))
+    copy!(EMOJIS_MAP, JSON.parsefile(joinpath(@__DIR__, "..", "assets", "emojis.json")))
+    if !isdir(EMOJIS_PNGPATH)
+        unzip(joinpath(@__DIR__, "..", "assets", "openmoji-png-color.zip"),
+              EMOJIS_PNGPATH)
+    end
 end
 
 

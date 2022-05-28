@@ -64,7 +64,7 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
     linewrap_positions = Observable(Int64[])
 
     # attach a function to any text that calculates the glyph layout and stores it
-    glyphcollection = lift(text, plot.textsize, plot.font, plot.align,
+    glyphcollection_emojicollection = lift(text, plot.textsize, plot.font, plot.align,
             plot.rotation, plot.justification, plot.lineheight,
             plot.color, plot.strokecolor, plot.strokewidth, linewrap_positions) do str,
                 ts, f, al, rot, jus, lh, col, scol, swi, positions
@@ -75,13 +75,20 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
         col = to_color(col)
         scol = to_color(scol)
 
-        # TODO Emojis should be replaced here
-        # TODO can we use a buffer for the replaced text?
-        # emoji_str = replace_emojis(str)
-
         layout_formatted_text(str, positions, ts, f, al, rot, jus, lh, col, scol, swi)
     end
 
+    # since lift can only return one Observable at a time we have to unpack
+    # glyphcollection_emojicollection here
+    glyphcollection = Observable(glyphcollection_emojicollection[][1])
+    emojicollection = Observable(glyphcollection_emojicollection[][2])
+    glyphbbs = Observable(gl_bboxes(glyphcollection_emojicollection[][1]))
+    on(glyphcollection_emojicollection) do gc_ec
+        gc, ec = gc_ec
+        glyphcollection[] = gc
+        emojicollection[] = ec
+        glyphbbs[] = gl_bboxes(gc)
+    end
 
     default_glyphs   = glyphcollection[].glyphs
     default_glyphbbs = gl_bboxes(glyphcollection[])
@@ -114,18 +121,30 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
 
     plot.maxwidth[] = plot.maxwidth[]
 
-    text!(plot, glyphcollection; plot.attributes...)
+    txt = text!(plot, glyphcollection; plot.attributes...)
+
+    on(emojicollection) do ec
+        # txtbbox = Rect2f(boundingbox(txt))
+        # bbox = Rect2f(0,0,0,0)
+        # for bb in glyphbbs[]
+        #     display(bb.origin)
+        # end
+        for (shorthand, pos) in ec
+            filename = emoji_filename_png(shorthand)
+            e_img = load_emoji_image(filename)
+            bbox = glyphbbs[][pos]
+            w, h = width(bbox), height(bbox)
+            # these bboxes don't know about their predecessors, hence, the emojis are placed wrongly
+            box, boy = bbox.origin
+            msize = max(w, h)
+            scatter!(plot, (box, boy), marker=e_img, markersize=200, markerspace=:data,
+                     space=:data)
+        end
+    end
+
+    notify(glyphcollection_emojicollection)
 
     plot
-end
-
-
-function replace_emojis(str)
-    for m in eachmatch(RGX_EMOJI, str)
-        emoji = first(m.captures)
-        str = replace(str, ":$(emoji):" => EMOJIS[emoji])
-    end
-    str
 end
 
 
@@ -215,6 +234,8 @@ function layout_formatted_text(
     string = ""
     fontperchar = Any[]
     textsizeperchar = Any[]
+    colorperchar = Any[]
+    emojicollection = Tuple{String,Int64}[]
     scanned_position = 0
     iter = iterate(linewrap_positions)
     for textelement in paragraph.content
@@ -232,6 +253,22 @@ function layout_formatted_text(
                   "is of type '$(typeof(textelement))'")
         end
 
+        # replace emojis here which are given by the syntax :emoij_shorthand:
+        textelement_emojis = Tuple{String,Int64}[]
+        for m in eachmatch(RGX_EMOJI, textelement_string)
+            # query shorthands and replace them with a placeholder character
+            # later we plot the actual emoji ontop of the placeholder
+            e = first(m.captures)
+            !(e in keys(EMOJIS_MAP)) && error("Unknown emoij shorthand '$e'")
+            placeholder_e = first(EMOJIS_MAP[e])
+            start_pos     = prevind(textelement_string, m.offset) # starting colon
+            end_pos       = nextind(textelement_string, m.offset+length(e)+1) # ending colon
+            textelement_string = textelement_string[1:start_pos] * "$placeholder_e" *
+                textelement_string[end_pos:end]
+            push!(textelement_emojis, (e, scanned_position+m.offset))
+        end
+        append!(emojicollection, textelement_emojis)
+
         textelement_length = length(textelement_string)
 
         while iter !== nothing 
@@ -245,20 +282,25 @@ function layout_formatted_text(
             iter = iterate(linewrap_positions, state)
         end
 
-        # TODO emojis should be replaced before layouting the whole text
-        textelement_string = replace_emojis(textelement_string)
         scanned_position += textelement_length
         string = string * textelement_string
 
         textelement_fontperchar = Makie.attribute_per_char(textelement_string, textelement_ft_font)
         textelement_textsizeperchar = Makie.attribute_per_char(textelement_string, rscale)
+        textelement_colorperchar = collect(Makie.attribute_per_char(textelement_string, color))
+
+        # make emoji placeholders transparent
+        for (e, pos) in textelement_emojis
+            textelement_colorperchar[pos] = RGBA{Float32}(0,0,0,0)
+        end
 
         append!(fontperchar, textelement_fontperchar)
         append!(textsizeperchar, textelement_textsizeperchar)
+        append!(colorperchar, textelement_colorperchar)
     end
 
     glyphcollection = Makie.glyph_collection(string, fontperchar, textsizeperchar, align[1],
-        align[2], lineheight, justification, rot, color, strokecolor, strokewidth)
+        align[2], lineheight, justification, rot, colorperchar, strokecolor, strokewidth)
 
-    return glyphcollection
+    return glyphcollection, emojicollection
 end
