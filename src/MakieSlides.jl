@@ -15,7 +15,7 @@ import Cairo
 
 
 # Makie internal dependencies of formattedtext.jl, formattedcode.jl
-import Makie: NativeFont, gl_bboxes, attribute_per_char, glyph_collection
+import Makie: NativeFont, gl_bboxes, attribute_per_char, glyph_collection, RGBAf
 import MakieCore: automatic
 # Makie internal dependencies of formattedlabel.jl, formattedlist, markdownbox.jl
 using Makie.MakieLayout
@@ -270,7 +270,7 @@ emoji_filename_png(shorthand::String) =
 
 function load_emoji_image(filename)
     img = load(filename)
-    convert.(ARGB{Float32}, img)
+    convert.(RGBAf, img)
 end
 
 
