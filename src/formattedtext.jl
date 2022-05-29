@@ -255,17 +255,19 @@ function layout_formatted_text(
 
         # replace emojis here which are given by the syntax :emoij_shorthand:
         textelement_emojis = Tuple{String,Int64}[]
-        for m in eachmatch(RGX_EMOJI, textelement_string)
+        m = match(RGX_EMOJI, textelement_string)
+        while !isnothing(m)
             # query shorthands and replace them with a placeholder character
             # later we plot the actual emoji ontop of the placeholder
             e = first(m.captures)
-            !(e in keys(EMOJIS_MAP)) && error("Unknown emoij shorthand '$e'")
-            placeholder_e = first(EMOJIS_MAP[e])
+            isunknown = !(e in keys(EMOJIS_MAP))
+            placeholder_e = isunknown ? '\UFFFD' #= � =# : first(EMOJIS_MAP[e])
             start_pos     = prevind(textelement_string, m.offset) # starting colon
             end_pos       = nextind(textelement_string, m.offset+length(e)+1) # ending colon
             textelement_string = textelement_string[1:start_pos] * "$placeholder_e" *
                 textelement_string[end_pos:end]
-            push!(textelement_emojis, (e, scanned_position+m.offset))
+            !isunknown && push!(textelement_emojis, (e, scanned_position+m.offset))
+            m = match(RGX_EMOJI, textelement_string)
         end
         append!(emojicollection, textelement_emojis)
 
