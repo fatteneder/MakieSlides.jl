@@ -10,16 +10,14 @@
         textsize::Float32 = inherit(scene, :fontsize, 16f0)
         "The font family of the text."
         font::Makie.FreeTypeAbstraction.FTFont = inherit(scene, :font, "DejaVu Sans")
-        "The vertical justification of the text (:top, :bottom, :center)."
-        vjustify = :top
-        "The horizontal justification of the text (:left, :right, :center)."
-        hjustify = :left
+        "The justification of the text (:left, :right, :center)."
+        justification = :left
         "The lineheight multiplier for the text."
         lineheight::Float32 = 1.0
         "The vertical alignment of the text in its suggested boundingbox"
-        valign = :center
+        valign = :top
         "The horizontal alignment of the text in its suggested boundingbox"
-        halign = :center
+        halign = :left
         "The counterclockwise rotation of the text in radians."
         rotation::Float32 = 0f0
         "The extra space added to the sides of the text boundingbox."
@@ -44,6 +42,8 @@
         strokevisible::Bool = true
         "The color of the border."
         strokecolor::RGBAf = RGBf(0, 0, 0)
+        "Enable word wrapping to the suggested width of the Label."
+        word_wrap::Bool = true
     end
 end
 
@@ -57,49 +57,65 @@ function initialize_block!(l::FormattedLabel)
 
     textpos = Observable(Point3f(0, 0, 0))
     textbb = Ref(BBox(0, 1, 0, 1))
+    word_wrap_width = Observable(-1f0)
 
-    # the text
     fmttxt = formattedtext!(
-        blockscene, l.text, position = textpos, textsize = l.textsize, 
-        font = l.font, color = l.color, visible = l.visible, align = (l.hjustify,l.vjustify), 
-        rotation = l.rotation, markerspace = :data, justification = l.hjustify,
-        lineheight = l.lineheight, inspectable = false
-    )
+        blockscene, l.text, position = textpos, textsize = l.textsize, font = l.font, color = l.color,
+        visible = l.visible, align = (l.halign,l.valign), rotation = l.rotation, markerspace = :data,
+        justification = l.justification, lineheight = l.lineheight, word_wrap_width = word_wrap_width,
+        inspectable = false)
 
-    onany(layoutobservables.computedbbox, l.padding, l.halign, l.valign, 
-          l.hjustify, l.vjustify) do bbox, padding, halign, valign, hjustify, vjustify
+    textbb = Ref(BBox(0, 1, 0, 1))
 
-        textbb = Rect2f(boundingbox(fmttxt))
-        tw, th = width(textbb), height(textbb)
+    onany(l.text, l.textsize, l.font, l.rotation, l.padding) do text,
+            textsize, font, rotation, padding
+        textbb[] = Rect2f(boundingbox(fmttxt))
+        autowidth = width(textbb[]) + padding[1] + padding[2]
+        autoheight = height(textbb[]) + padding[3] + padding[4]
+        if l.word_wrap[]
+            layoutobservables.autosize[] = (nothing, autoheight)
+        else
+            layoutobservables.autosize[] = (autowidth, autoheight)
+        end
+        return
+    end
+
+    onany(layoutobservables.computedbbox, l.padding) do bbox, padding
+
         w = width(bbox)
         h = height(bbox)
         box, boy = bbox.origin
 
-        # position text
+        if l.word_wrap[]
+            tw = width(layoutobservables.suggestedbbox[]) - padding[1] - padding[2]
+        else
+            tw = width(textbb[])
+        end
+        th = height(textbb[])
+
         tx = box
-        tx += if hjustify === :left
+        tx += if l.halign[] === :left
             padding[1]
-        elseif hjustify === :center
+        elseif l.halign[] === :center
             w/2
-        elseif hjustify === :right
+        elseif l.halign[] === :right
             w - padding[2]
         end
         ty = boy
-        ty += if vjustify === :top
+        ty += if l.valign[] === :top
             h - padding[3]
-        elseif vjustify === :center
+        elseif l.valign[] === :center
             h/2
-        elseif vjustify === :bottom
+        elseif l.valign[] === :bottom
             padding[4]
         end
         textpos[] = Point3f(tx, ty, 0)
 
-        fmttxt.maxwidth[] = w - padding[1] - padding[2]
-        
-        autoheight = th + padding[3] + padding[4]
-        if !isapprox(h, autoheight)
-            layoutobservables.reportedsize[] = (nothing, autoheight)
+        if l.word_wrap[] && (word_wrap_width[] != tw)
+            word_wrap_width[] = tw
+            notify(l.text)
         end
+        return
     end
 
     # background box
@@ -108,7 +124,7 @@ function initialize_block!(l::FormattedLabel)
     end
 
     ibbox = lift(layoutobservables.computedbbox) do bbox
-        round_to_IRect2D(layoutobservables.suggestedbbox[])
+        round_to_IRect2D(layoutobservables.computedbbox[])
     end
 
     # TODO: simplify this to lines and move backgroundcolor to blockscene?

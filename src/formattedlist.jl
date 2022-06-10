@@ -88,7 +88,8 @@ function initialize_block!(l::FormattedList)
         push!(symbol_labels, lbl)
         l.layout[idx, 1] = lbl
         l.layout[idx, 2] = FormattedLabel(blockscene, text=first(item),
-                                            halign=:left, valign=:top, tellwidth=false)
+                                            halign=:left, valign=:top,
+                                            tellwidth=false, tellheight=true)
     end
 
     label_fillbox = Box(blockscene, width=Fixed(1000.0 #= will be adjusted below=#), visible=false)

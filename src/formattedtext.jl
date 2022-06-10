@@ -21,7 +21,7 @@ Plots `Markdown` formatted text.
         markerspace = :pixel,
         offset = (0.0, 0.0),
         inspectable = theme(scene, :inspectable),
-        maxwidth = 0.0
+        word_wrap_width = 0.0
     )
 end
 
@@ -66,8 +66,8 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
     # attach a function to any text that calculates the glyph layout and stores it
     glyphcollection = lift(text, plot.textsize, plot.font, plot.align,
             plot.rotation, plot.justification, plot.lineheight,
-            plot.color, plot.strokecolor, plot.strokewidth, linewrap_positions) do str,
-                ts, f, al, rot, jus, lh, col, scol, swi, positions
+            plot.color, plot.strokecolor, plot.strokewidth, linewrap_positions, 
+            plot.word_wrap_width) do str, ts, f, al, rot, jus, lh, col, scol, swi, positions, word_wrap_width
 
         ts = to_textsize(ts)
         f = to_font(f)
@@ -75,79 +75,14 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
         col = to_color(col)
         scol = to_color(scol)
 
-        layout_formatted_text(str, positions, ts, f, al, rot, jus, lh, col, scol, swi)
+        layout_formatted_text(str, positions, ts, f, al, rot, jus, lh, col, scol, swi, word_wrap_width)
     end
-
-    default_glyphs   = glyphcollection[].glyphs
-    default_glyphbbs = gl_bboxes(glyphcollection[])
-    on(plot.maxwidth) do maxwidth
-
-        # split up glyphs and bboxes into blocks corresponding to the parapgrah blocks that
-        # are separated by empty lines
-        splits = [ firstindex(default_glyphs),
-                   findall(g -> g == '\n', default_glyphs)...,
-                   lastindex(default_glyphs) ]
-        s1, s2 = @view(splits[1:end-1]), @view(splits[2:end])
-        glyph_blocks     = [ view( default_glyphs,
-                                  (n == 1 ? i1 : i1+1):(n == length(splits)-1 ? i2 : i2-1)
-                                 )
-                             for (n, (i1, i2)) in enumerate(zip(s1, s2)) ]
-        glyphbbox_blocks = [ view( default_glyphbbs,
-                                  (n == 1 ? i1 : i1+1):(n == length(splits)-1 ? i2 : i2-1)
-                                 )
-                            for (n, (i1, i2)) in enumerate(zip(s1, s2)) ]
-        linewrap_positions_per_block = estimate_linewrap_positions.(glyph_blocks, 
-                                                                    glyphbbox_blocks,
-                                                                    maxwidth)
-        # add index offsets
-        for (idx, offset) in enumerate(s1)
-            linewrap_positions_per_block[idx] .+= idx == 1 ? 0 : offset
-        end
-
-        linewrap_positions[] = vcat(linewrap_positions_per_block...)
-    end
-
-    plot.maxwidth[] = plot.maxwidth[]
 
     text!(plot, glyphcollection; plot.attributes...)
 
+    notify(plot.text)
+
     plot
-end
-
-
-function estimate_linewrap_positions(glyphs, glyphbbs, maxwidth)
-    fullwidth = sum(width.(glyphbbs))
-    (maxwidth <= 0 || maxwidth > fullwidth) && return Int64[]
-    N = length(glyphs)
-    @assert N == length(glyphbbs)
-    positions = Int64[]
-    last_linewrap_pos, accumulated_width, pos = 1, 0, 1
-    while pos <= N
-        bb = glyphbbs[pos]
-        accumulated_width += width(bb)
-        if accumulated_width > maxwidth
-            # time to wrap, search backwards for first whitespace
-            whitespace_pos = pos
-            for j = reverse(last_linewrap_pos+1:pos-1)
-                if glyphs[j] == ' '; whitespace_pos = j; break; end
-            end
-            if whitespace_pos == pos
-                # failed to find any whitespace and exact wrapping has now failed
-                # we search forwards for the next whitespace
-                # this will yield overly high boundingboxes -- is that an issue?
-                while whitespace_pos <= N
-                    if glyphs[whitespace_pos] == ' '; break; end
-                    whitespace_pos += 1
-                end
-            end
-            push!(positions, whitespace_pos)
-            accumulated_width, last_linewrap_pos = 0, whitespace_pos
-            pos = last_linewrap_pos + 1 # + 1 to skip the whitespace at which we line wrap
-        else
-            pos += 1
-        end
-    end
-    return positions
 end
 
 
@@ -192,17 +127,16 @@ to_code_font(x::Vector{NativeFont}) = x
 function layout_formatted_text(
         paragraph::Markdown.Paragraph, linewrap_positions::Vector{Int64},
         textsize::Union{AbstractVector, Number},
-        font, align, rotation, justification, lineheight, color, strokecolor, strokewidth
+        font, align, rotation, justification, lineheight, color, strokecolor, strokewidth,
+        word_wrap_width
     )
 
     rscale = to_textsize(textsize)
     rot = to_rotation(rotation)
 
-    string = ""
+    text = ""
     fontperchar = Any[]
     textsizeperchar = Any[]
-    scanned_position = 0
-    iter = iterate(linewrap_positions)
     for textelement in paragraph.content
 
         textelement_string, textelement_ft_font = if textelement isa Markdown.Bold
@@ -218,21 +152,7 @@ function layout_formatted_text(
                   "is of type '$(typeof(textelement))'")
         end
 
-        textelement_length = length(textelement_string)
-
-        while iter !== nothing 
-            next_linewrap_position, state = iter
-            next_linewrap_position > scanned_position + textelement_length && break
-            # whitespace in current textelement
-            whitespace_position = next_linewrap_position - scanned_position
-            textelement_string = textelement_string[1:whitespace_position-1] * "\n" *
-                             textelement_string[whitespace_position+1:end]
-            textelement_length = length(textelement_string)
-            iter = iterate(linewrap_positions, state)
-        end
-
-        scanned_position += textelement_length
-        string = string * textelement_string
+        text = text * textelement_string
 
         textelement_fontperchar = Makie.attribute_per_char(textelement_string, textelement_ft_font)
         textelement_textsizeperchar = Makie.attribute_per_char(textelement_string, rscale)
@@ -241,8 +161,9 @@ function layout_formatted_text(
         append!(textsizeperchar, textelement_textsizeperchar)
     end
 
-    glyphcollection = Makie.glyph_collection(string, fontperchar, textsizeperchar, align[1],
-        align[2], lineheight, justification, rot, color, strokecolor, strokewidth)
+    glyphcollection = Makie.glyph_collection(text, fontperchar, textsizeperchar, align[1],
+                                             align[2], lineheight, justification, rot, color, 
+                                             strokecolor, strokewidth, word_wrap_width)
 
     return glyphcollection
 end

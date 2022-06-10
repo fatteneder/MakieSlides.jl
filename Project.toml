@@ -17,5 +17,5 @@ Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 PyCall = "438e738f-606a-5dbb-bf0a-cddfbfd45ab0"
 
 [compat]
-Makie = "0.17"
+Makie = "0.17.4"
 julia = "1"

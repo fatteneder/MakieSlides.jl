@@ -55,8 +55,8 @@ add_slide!(pres) do fig
     """
     # FormattedLabel(fig[2, 1], str, halign = :right, valign = :bottom, tellheight = false, tellwidth = false)
     FormattedLabel(fig[2, 2], str, halign = :left,  valign = :top, tellheight = false, tellwidth = false)
-    FormattedLabel(fig[3, 1], str, hjustify = :center, tellheight = false, tellwidth = false)
-    FormattedLabel(fig[3, 2], str, hjustify = :right, tellheight = false, tellwidth = false)
+    FormattedLabel(fig[3, 1], str, halign = :center, tellheight = false, tellwidth = false)
+    FormattedLabel(fig[3, 2], str, halign = :right, tellheight = false, tellwidth = false)
 end
 
 add_slide!(pres) do fig
