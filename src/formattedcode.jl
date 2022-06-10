@@ -145,10 +145,11 @@ function layout_code(
         append!(textsizeperchar, token_sizeperchar)
         append!(colorperchar, token_colorperchar)
     end
-
+    
+    word_wrap_width = -1 # deactivate line wrapping
     glyphcollection = glyph_collection(
         glyph_string, fontperchar, textsizeperchar, align[1], align[2],
-        lineheight, justification, rot, colorperchar, strokecolor, strokewidth
+        lineheight, justification, rot, colorperchar, strokecolor, strokewidth, word_wrap_width
     )
 
     return glyphcollection
