@@ -21,7 +21,7 @@ Plots `Markdown` formatted text.
         markerspace = :pixel,
         offset = (0.0, 0.0),
         inspectable = theme(scene, :inspectable),
-        maxwidth = 0.0
+        word_wrap_width = 0.0
     )
 end
 
@@ -67,7 +67,7 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
     glyphcollection = lift(text, plot.textsize, plot.font, plot.align,
             plot.rotation, plot.justification, plot.lineheight,
             plot.color, plot.strokecolor, plot.strokewidth, linewrap_positions, 
-            plot.maxwidth) do str, ts, f, al, rot, jus, lh, col, scol, swi, positions, maxwidth
+            plot.word_wrap_width) do str, ts, f, al, rot, jus, lh, col, scol, swi, positions, word_wrap_width
 
         ts = to_textsize(ts)
         f = to_font(f)
@@ -75,7 +75,7 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
         col = to_color(col)
         scol = to_color(scol)
 
-        layout_formatted_text(str, positions, ts, f, al, rot, jus, lh, col, scol, swi, maxwidth)
+        layout_formatted_text(str, positions, ts, f, al, rot, jus, lh, col, scol, swi, word_wrap_width)
     end
 
     text!(plot, glyphcollection; plot.attributes...)
@@ -152,20 +152,6 @@ function layout_formatted_text(
                   "is of type '$(typeof(textelement))'")
         end
 
-        # textelement_length = length(textelement_string)
-
-        # while iter !== nothing
-        #     next_linewrap_position, state = iter
-        #     next_linewrap_position > scanned_position + textelement_length && break
-        #     # whitespace in current textelement
-        #     whitespace_position = next_linewrap_position - scanned_position
-        #     textelement_string = textelement_string[1:whitespace_position-1] * "\n" *
-        #                      textelement_string[whitespace_position+1:end]
-        #     textelement_length = length(textelement_string)
-        #     iter = iterate(linewrap_positions, state)
-        # end
-
-        # scanned_position += textelement_length
         text = text * textelement_string
 
         textelement_fontperchar = Makie.attribute_per_char(textelement_string, textelement_ft_font)

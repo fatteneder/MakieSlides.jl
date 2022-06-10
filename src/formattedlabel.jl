@@ -62,7 +62,7 @@ function initialize_block!(l::FormattedLabel)
     fmttxt = formattedtext!(
         blockscene, l.text, position = textpos, textsize = l.textsize, font = l.font, color = l.color,
         visible = l.visible, align = (l.halign,l.valign), rotation = l.rotation, markerspace = :data,
-        justification = l.justification, lineheight = l.lineheight, maxwidth = word_wrap_width,
+        justification = l.justification, lineheight = l.lineheight, word_wrap_width = word_wrap_width,
         inspectable = false)
 
     textbb = Ref(BBox(0, 1, 0, 1))
@@ -111,7 +111,6 @@ function initialize_block!(l::FormattedLabel)
         end
         textpos[] = Point3f(tx, ty, 0)
 
-        # textpos[] = Point3f(tx, ty, 0)
         if l.word_wrap[] && (word_wrap_width[] != tw)
             word_wrap_width[] = tw
             notify(l.text)
