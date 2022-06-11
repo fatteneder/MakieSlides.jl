@@ -108,24 +108,65 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
         gl_bboxes(glc)
     end
 
-    on(emojicollection) do ec
-        # txtbbox = Rect2f(boundingbox(textplot))
-        # bbox = Rect2f(0,0,0,0)
-        # for bb in glyphbbs[]
-        #     display(bb.origin)
-        # end
+    textbb = Ref(BBox(0, 1, 0, 1))
+    emoji_positions = Observable{Vector{Point2f}}(Point2f[(0,0)])
+    emoji_images    = Observable{Vector{Matrix{RGBAf}}}(Matrix{RGBAf}[rand(RGBAf, 1,1)])
+    emoji_sizes     = Observable{Vector{Vec2f}}(Vec2f[(0,0)])
+    emoji_offsets   = Observable{Vector{Vec2f}}(Vec2f[(0,0)])
+    onany(emojicollection, plot.align) do ec, align
+        # empty and size all arrays
+        empty!(emoji_positions.val)
+        empty!(emoji_images.val)
+        empty!(emoji_sizes.val)
+        empty!(emoji_offsets.val)
+        sizehint!(emoji_positions.val, length(ec))
+        sizehint!(emoji_images.val, length(ec))
+        sizehint!(emoji_sizes.val, length(ec))
+        sizehint!(emoji_offsets.val, length(ec))
+
+        textbb[] = Rect2f(boundingbox(textplot))
+        box, boy = textbb[].origin
+        w, h = width(textbb[]), height(textbb[])
+        println("(box, boy, w, h) = ($box, $boy, $w, $h)")
+        halign, valign = align
+        anchor_x = if halign === :left
+            box
+        elseif halign === :center
+            box + w/2
+        else #halign === :right
+            box + w
+        end
+        anchor_y = if valign === :top
+            boy + h
+        elseif valign === :center
+            boy + h/2
+        else #valign === :bottom
+            boy
+        end
+        anchor = Point2f(anchor_x, anchor_y)
+
+        positions, char_offsets, quad_offsets, uvs, scales = Makie.text_quads(
+            Vec2f(textplot.attributes.position[][1:2]), glyphcollection[], Vec2f(0), Makie.transform_func_obs(textplot.parent)[])
+
         for (shorthand, pos) in ec
             filename = emoji_filename_png(shorthand)
-            e_img = load_emoji_image(filename)
-            bbox = glyphbbs[][pos]
-            w, h = width(bbox), height(bbox)
-            # these bboxes don't know about their predecessors, hence, the emojis are placed wrongly
-            box, boy = bbox.origin
-            msize = max(w, h)
-            scatter!(plot, (box, boy), marker=e_img, markersize=200, markerspace=:data,
-                     space=:data)
+            push!(emoji_positions.val, Point2f(char_offsets[pos][1:2]) + anchor)
+            push!(emoji_images.val, load_emoji_image(filename))
+            push!(emoji_sizes.val, scales[pos])
+            push!(emoji_offsets.val, quad_offsets[pos])
         end
+
+        # notify all observables in sequence
+        notify(emoji_positions)
+        notify(emoji_images)
+        notify(emoji_sizes)
+        notify(emoji_offsets)
     end
+
+    scatter!(plot, emoji_positions; 
+             marker = emoji_images, markersize = emoji_sizes, space = plot.space, 
+             markerspace = plot.markerspace, marker_offset = emoji_offsets)
+    notify(emojicollection)
 
     plot
 end
@@ -190,20 +231,23 @@ function layout_formatted_text(
         element_emojis = Tuple{String,Int64}[]
         m = match(RGX_EMOJI, element)
         while !isnothing(m)
+            println(element[m.offset])
             # query shorthands and replace them with a placeholder character
             # later we plot the actual emoji ontop of the placeholder
             e = first(m.captures)
             isunknown = !(e in keys(EMOJIS_MAP))
+            # TODO Figure out the character indices, because match returns code unit indices.
             placeholder_e = isunknown ? '\UFFFD' #= � =# : first(EMOJIS_MAP[e])
             pos_lhs_colon = prevind(element, m.offset)
-            pos_rhs_colon = nextind(element, m.offset+length(e)+1)
-            element = element[1:pos_lhs_colon] * "$placeholder_e" * element[pos_rhs_colon:end]
+            pos_rhs_colon = nextind(element, m.offset+ncodeunits(e)+1)
+            element = element[begin:pos_lhs_colon] * "$placeholder_e" * element[pos_rhs_colon:end]
             !isunknown && push!(element_emojis, (e, scanned_position+m.offset))
             m = match(RGX_EMOJI, element)
         end
         append!(emojicollection, element_emojis)
+        println(emojicollection)
 
-        scanned_position += length(element)
+        scanned_position += ncodeunits(element)
         text = text * element
 
         element_fontperchar = Makie.attribute_per_char(element, font)
@@ -212,7 +256,7 @@ function layout_formatted_text(
 
         # make emoji placeholders transparent
         for (_, pos) in element_emojis
-            element_colorperchar[pos] = RGBA{Float32}(0,0,0,0)
+            element_colorperchar[pos] = RGBA{Float32}(0,0,0,1)
         end
 
         append!(fontperchar, element_fontperchar)
