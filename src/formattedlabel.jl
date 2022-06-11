@@ -57,65 +57,45 @@ function initialize_block!(l::FormattedLabel)
 
     textpos = Observable(Point3f(0, 0, 0))
     textbb = Ref(BBox(0, 1, 0, 1))
-    word_wrap_width = Observable(-1f0)
 
     fmttxt = formattedtext!(
         blockscene, l.text, position = textpos, textsize = l.textsize, font = l.font, color = l.color,
         visible = l.visible, align = (l.halign,l.valign), rotation = l.rotation, markerspace = :data,
-        justification = l.justification, lineheight = l.lineheight, word_wrap_width = word_wrap_width,
-        inspectable = false)
+        justification = l.justification, lineheight = l.lineheight, inspectable = false)
 
-    textbb = Ref(BBox(0, 1, 0, 1))
+    onany(layoutobservables.computedbbox, l.padding, l.halign, l.valign) do bbox, padding,
+            halign, valign
 
-    onany(l.text, l.textsize, l.font, l.rotation, l.padding) do text,
-            textsize, font, rotation, padding
         textbb[] = Rect2f(boundingbox(fmttxt))
-        autowidth = width(textbb[]) + padding[1] + padding[2]
-        autoheight = height(textbb[]) + padding[3] + padding[4]
-        if l.word_wrap[]
-            layoutobservables.autosize[] = (nothing, autoheight)
-        else
-            layoutobservables.autosize[] = (autowidth, autoheight)
-        end
-        return
-    end
-
-    onany(layoutobservables.computedbbox, l.padding) do bbox, padding
-
-        w = width(bbox)
-        h = height(bbox)
+        th = height(textbb[])
+        w, h = width(bbox), height(bbox)
         box, boy = bbox.origin
 
-        if l.word_wrap[]
-            tw = width(layoutobservables.suggestedbbox[]) - padding[1] - padding[2]
-        else
-            tw = width(textbb[])
-        end
-        th = height(textbb[])
-
+        # position text
         tx = box
-        tx += if l.halign[] === :left
+        tx += if halign === :left
             padding[1]
-        elseif l.halign[] === :center
+        elseif halign === :center
             w/2
-        elseif l.halign[] === :right
+        else #halign === :right
             w - padding[2]
         end
         ty = boy
-        ty += if l.valign[] === :top
+        ty += if valign === :top
             h - padding[3]
-        elseif l.valign[] === :center
+        elseif valign === :center
             h/2
-        elseif l.valign[] === :bottom
+        else #valign === :bottom
             padding[4]
         end
         textpos[] = Point3f(tx, ty, 0)
 
-        if l.word_wrap[] && (word_wrap_width[] != tw)
-            word_wrap_width[] = tw
-            notify(l.text)
+        fmttxt.word_wrap_width[] = w - padding[1] - padding[2]
+
+        autoheight = th + padding[3] + padding[4]
+        if !isapprox(h, autoheight)
+            layoutobservables.reportedsize[] = (nothing, autoheight)
         end
-        return
     end
 
     # background box
