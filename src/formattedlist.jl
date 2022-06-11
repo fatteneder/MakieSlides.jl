@@ -12,7 +12,7 @@
         "The color of the text."
         color::RGBAf = inherit(scene, :textcolor, :black)
         "The font size of the text."
-        textsize::Float32 = inherit(scene, :fontsize, 16f0)
+        textsize::Float32 = inherit(scene, :fontsize, 20f0)
         "The font family of the text."
         font::Makie.FreeTypeAbstraction.FTFont = inherit(scene, :font, "DejaVu Sans")
         "The justification of the text (:left, :right, :center)."
@@ -97,7 +97,7 @@ function initialize_block!(l::FormattedList)
     for (idx, item) in enumerate(l.list[].items)
         # fmtlbl = FormattedLabel(fig_or_scene, text=symbol(idx), halign=:left, valign=:top)
         # using Label for now, because FormattedLabel promotes strings to Markdown.MD and
-        # symbols like "1." would be parsed as Markdown.Lists, but the underlyinig 
+        # symbols like "1." would be parsed as Markdown.Lists, but the underlying
         # formattedtext only works with Markdown.Paragraphs
         lbl = Label(l.blockscene, text=symbol_fn[](idx), halign=:left, valign=:top,
                     tellwidth=true, word_wrap=false)

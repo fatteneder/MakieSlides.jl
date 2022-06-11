@@ -4,6 +4,7 @@ module MakieSlides
 using CairoMakie
 using Colors
 using GLMakie
+using LaTeXStrings
 using Makie
 using Markdown
 using Printf
@@ -17,6 +18,11 @@ import MakieCore: automatic
 # Makie internal dependencies of formattedlabel.jl, formattedlist, markdownbox.jl
 using Makie.MakieLayout
 import Makie.MakieLayout: @Block, inherit, round_to_IRect2D, initialize_block!
+
+
+# Resolve method ambiguity. Remove ASAP with next Makie update.
+Makie.MakieLayout.convert_for_attribute(t::Type{Makie.FreeTypeAbstraction.FTFont},
+                            x::Makie.FreeTypeAbstraction.FTFont) = to_font(x)
 
 
 export Presentation, add_slide!, reset!, save

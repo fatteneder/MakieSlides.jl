@@ -9,81 +9,78 @@ add_slide!(pres) do fig
     rowgap!(fig.layout, 1, Fixed(10))
 end
 
+
 add_slide!(pres) do fig
-    Label(fig[1, 1:2], "Example Slide without text wrapping", textsize = 40, tellwidth = false)
-    scene = LScene(fig[2, 1], tellwidth = false)
-    campixel!(scene)
+    MarkdownBox(fig[1, 1], md"""
+# MarkdownBox
+""")
 
-    formattedtext!(scene, """
-    Hello world! 
-    
-    Here follows a very long text which I don't know about whether it will line break or not... probably not
-    
-    ... above line should have wrapped around :(
-    
-    But here is some formatted text
-    
-    *italic* works
-    
-    **bold** works
-    
-    `code` works (ignoring language for now; colored background would be cool)
-    """)
+    MarkdownBox(fig[2, 1], md"""
+# MarkdownBox
 
-    ax = Axis(fig[2, 2], title = "A fancy plot")
-    scatter!(ax, range(0, 4pi, length=101), sin)
+## What is a MarkdownBox?
+
+MarkdownBox allows you to use standard Markdown syntax to fill your slides with
+content. So far we support
+- Lists & Enumerations
+- Tables
+- Codeblocks
+- Headings
+- Horizontal dividers
+- Equations
+- *italic text*
+- **bold text**
+- `inline code`
+
+""")
+
 end
 
-add_slide!(pres) do fig
-    Label(fig[1, 1:2], "Using FormattedLabel", textsize = 40, tellwidth = false)
 
-    # # TODO: This errors because of string indexing
-    FormattedList(fig[2, 1], md"""
-- *italic* text
-- **bold** text
-- `code`
-    """, tellheight = false, tellwidth = false
-    )
-    str = """
-    Look at this long line of text. Because it is long it would usually flow out of the Label but we have word wrapping so it doesn't!
-    
-    *italic* works
-    
-    **bold** works
-    
-    `code` works (ignoring language for now; colored background would be cool)
-    """
-    # FormattedLabel(fig[2, 1], str, halign = :right, valign = :bottom, tellheight = false, tellwidth = false)
-    FormattedLabel(fig[2, 2], str, halign = :left,  valign = :top, tellheight = false, tellwidth = false)
-    FormattedLabel(fig[3, 1], str, halign = :center, tellheight = false, tellwidth = false)
-    FormattedLabel(fig[3, 2], str, halign = :right, tellheight = false, tellwidth = false)
+add_slide!(pres) do fig
+
+    MarkdownBox(fig[1,1], md"""
+# Code block
+
+```
+using GLMakie
+GLMakie.activate!()
+
+f = Figure()
+MarkdownBox(fig[1,1], md\"""
+Here goes your markdown, e.g. a shopping list with
+- milk
+- cookies
+- bananas
+\"""
+```
+""")
+
 end
 
+
 add_slide!(pres) do fig
-    Label(fig[1, 1], "Example List", textsize = 40, tellwidth = false)
-    Box(fig[2, 1], visible = false) # Spacer
-    FormattedList(fig[3, 1], md"""
-    - First Entry
 
-    - Second Entry
+    MarkdownBox(fig[1,1], md"""
+# Table
 
-    - Third Entry
-    """)
+| Region  | Rep      | Item   | Units  | Unit Cost | Total     |
+|:--------|:---------|:-------|-------:|----------:|----------:|
+| East    | Jones    | Pencil |      95|  1.99     |    189.05 |
+| Central | Kivell   | Binder |      50|  19.99    |    999.50 |
+| Central | Jardine  | Pencil |      36|  4.99     |    179.64 |
+| Central | Gill     | Pen    |      27|  19.99    |    539.73 |
+""")
+
 end
 
-add_slide!(pres) do fig
-    Label(fig[1, 1], "Example Table", textsize = 40, tellwidth = false)
-    FormattedTable(fig[2, 1], md"""
-| Column One | Column Two | Column Three |
-|:---------- | ---------- |:------------:|
-| Row 1      | Column 2   |              |
-| Row 2      | Row 2      | Column 3     |
-    """, tellwidth = false)
-end
 
 add_slide!(pres) do fig
-    Label(fig[1, 1], "Example code block", textsize = 40, tellwidth=false)
-    FormattedCodeblock(fig[2, 1], md"""
+    MarkdownBox(fig[1, 1], md"""
+# Split slides
+""")
+
+    MarkdownBox(fig[2, 1], md"""
     ```julia
     # by Lazaro Alonso - BeautifulMakie
     let
@@ -95,7 +92,8 @@ add_slide!(pres) do fig
         axislegend(ax ; merge = true, position = :lt)
     end;
     ```
-    """, tellwidth=false)
+    """)
+
     let
         x = 0:0.05:1
         y = x .^ 2
@@ -106,38 +104,50 @@ add_slide!(pres) do fig
     end
 end
 
-add_slide!(pres) do fig
-    Label(fig[1, 1], "MarkdownBox Example", textsize = 40, tellwidth=false)
-    Box(fig[2, 1], visible = false) # Spacer
-    MarkdownBox(fig[3, 1], """
-    Some text with **emphasis**
-    """)
-end
 
 add_slide!(pres) do fig
-    Label(fig[1, 1], "TODO", textsize = 40, tellwidth=false)
-    FormattedList(fig[2,1], md"""
-- [x] Bold and italic text
-- [x] Automatically insert blank lines in paragraphs
-- [x] Automatic line wrapping
-- [x] Itemizations and enumerations
-- [x] Tables
-- [x] Code blocks with syntax highlighting
-- [ ] InlineCode
-- [ ] Headings
-- [ ] Horizontal dividers
-- [ ] Equations
-- [ ] Links
-- [ ] Headers/Footers/citations
+    MarkdownBox(fig[1, 1], md"""
+# Equations
+
+## Einstein field equations
+```math
+    G_{\mu\nu} = \frac{8 \pi G}{c^4} T_{\mu\nu}
+```
+
+## Schroedinger equation
+```math
+    i \hbar \partial_t \psi = \hat{H} \psi
+```
+
+## Maxwell equations
+```math
+    \partial_\beta F^{\alpha\beta} = \mu_0 J^\alpha 
+    \qquad 
+    \partial_{\alpha} F_{\beta\gamma} + \partial_{\beta} F_{\gamma\alpha} + \partial_{\gamma} F_{\alpha\beta} = 0
+```
+""")
+end
+
+    
+add_slide!(pres) do fig
+    MarkdownBox(fig[1,1], md"""
+# TODO
+
+- [-] Inline code (colored background missing)
 - [ ] Emojis
-- [ ] More stylized fonts, e.g. underline and strikethrough
+- [ ] Links
+- [ ] Inline equations
+- [ ] Slide headers, footers, page numbers
+- [ ] Citations
+- [ ] More stylized fonts, e.g. underline and strikethrough)
 - [ ] `CommonMark.jl` as alternative Markdown parser
 """)
 end
 
-# Move to first slide
-reset!(pres)
 
-# save pdf
+# # save pdf
 thisdir = basename(@__DIR__)
 MakieSlides.save(joinpath(thisdir, "presentation.pdf"), pres)
+
+# Move to first slide
+reset!(pres)
