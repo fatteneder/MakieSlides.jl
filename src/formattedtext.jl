@@ -63,19 +63,39 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
     text = plot[:text]
     linewrap_positions = Observable(Int64[])
 
+    text_elements_fonts = Observable(Tuple{String,Makie.FreeTypeAbstraction.FTFont}[])
+    onany(text, plot.font) do paragraph, font
+        for md_element in paragraph.content
+            element_string, element_ft_font = if md_element isa Markdown.Bold
+                first(md_element.text), to_bold_font(font)
+            elseif md_element isa Markdown.Italic
+                first(md_element.text), to_italic_font(font)
+            elseif md_element isa Markdown.Code
+                md_element.code, to_code_font(font)
+            elseif md_element isa String
+                md_element, to_font(font)
+            else
+                error("Cannot handle paragraph text element '$(md_element)' which " *
+                      "is of type '$(typeof(md_element))'")
+            end
+            push!(text_elements_fonts.val, (element_string, element_ft_font))
+        end
+        notify(text_elements_fonts)
+    end
+
     # attach a function to any text that calculates the glyph layout and stores it
-    glyphcollection = lift(text, plot.textsize, plot.font, plot.align,
+    glyphcollection = lift(text_elements_fonts, plot.textsize, plot.align,
             plot.rotation, plot.justification, plot.lineheight,
-            plot.color, plot.strokecolor, plot.strokewidth, linewrap_positions, 
-            plot.word_wrap_width) do str, ts, f, al, rot, jus, lh, col, scol, swi, positions, word_wrap_width
+            plot.color, plot.strokecolor, plot.strokewidth, 
+            plot.word_wrap_width) do elements_fonts, ts, al, rot, jus, lh, col, scol, 
+                swi, word_wrap_width
 
         ts = to_textsize(ts)
-        f = to_font(f)
         rot = to_rotation(rot)
         col = to_color(col)
         scol = to_color(scol)
 
-        layout_formatted_text(str, positions, ts, f, al, rot, jus, lh, col, scol, swi, word_wrap_width)
+        layout_formatted_text(elements_fonts, ts, al, rot, jus, lh, col, scol, swi, word_wrap_width)
     end
 
     text!(plot, glyphcollection; plot.attributes...)
@@ -125,10 +145,9 @@ to_code_font(x::Vector{NativeFont}) = x
 
 
 function layout_formatted_text(
-        paragraph::Markdown.Paragraph, linewrap_positions::Vector{Int64},
-        textsize::Union{AbstractVector, Number},
-        font, align, rotation, justification, lineheight, color, strokecolor, strokewidth,
-        word_wrap_width
+        text_elements_fonts::Vector{Tuple{String,Makie.FreeTypeAbstraction.FTFont}},
+        textsize::Union{AbstractVector, Number}, align, rotation, justification, lineheight,
+        color, strokecolor, strokewidth, word_wrap_width
     )
 
     rscale = to_textsize(textsize)
@@ -137,28 +156,15 @@ function layout_formatted_text(
     text = ""
     fontperchar = Any[]
     textsizeperchar = Any[]
-    for textelement in paragraph.content
+    for (element, font) in text_elements_fonts
 
-        textelement_string, textelement_ft_font = if textelement isa Markdown.Bold
-            first(textelement.text), to_bold_font(font)
-        elseif textelement isa Markdown.Italic
-            first(textelement.text), to_italic_font(font)
-        elseif textelement isa Markdown.Code
-            textelement.code, to_code_font(font)
-        elseif textelement isa String
-            textelement, to_font(font)
-        else
-            error("Cannot handle paragraph text element '$(textelement)' which " *
-                  "is of type '$(typeof(textelement))'")
-        end
+        text = text * element
 
-        text = text * textelement_string
+        element_fontperchar = Makie.attribute_per_char(element, font)
+        element_textsizeperchar = Makie.attribute_per_char(element, rscale)
 
-        textelement_fontperchar = Makie.attribute_per_char(textelement_string, textelement_ft_font)
-        textelement_textsizeperchar = Makie.attribute_per_char(textelement_string, rscale)
-
-        append!(fontperchar, textelement_fontperchar)
-        append!(textsizeperchar, textelement_textsizeperchar)
+        append!(fontperchar, element_fontperchar)
+        append!(textsizeperchar, element_textsizeperchar)
     end
 
     glyphcollection = Makie.glyph_collection(text, fontperchar, textsizeperchar, align[1],
