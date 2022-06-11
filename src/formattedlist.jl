@@ -55,67 +55,63 @@
 end
 
 
-FormattedList(x, text; kwargs...) = FormattedList(x, md_list = text; kwargs...)
+function FormattedList(x, md::Markdown.MD; kwargs...)
+    list = first(md.content)
+    if !(list isa Markdown.List)
+        error("Failed to extract markdown list.")
+    end
+    FormattedList(x, list; kwargs...)
+end
+FormattedList(x, list; kwargs...) = FormattedList(x, list = list; kwargs...)
 
 
 function initialize_block!(l::FormattedList)
-    blockscene = l.blockscene
 
-    item_symbol = l.itemization_symbol[]
-    # bullet_match = match(r"^\s*(\*|\+|-)", item_symbol)
-    # item_symbol = if !isnothing(bullet_match)
-    #     # escape bullet for Markdown.parse
-    #     offset = bullet_match.offset
-    #     string(item_symbol[1:offset-1], '\\', item_symbol[offset:end])
-    # end
-
-    list = l.md_list[].content[]
-    items, ordered = list.items, list.ordered
-    symbol = if ordered < 0
-        i -> item_symbol
-    else
-        format_enum_pttrn = Printf.Format(l.enumeration_pattern[])
-        i -> Printf.format(format_enum_pttrn, i+ordered-1)
+    items_ordered = Observable(-1)
+    on(l.list) do list
+        items_ordered = list.ordered
     end
 
-    symbol_labels = Label[]
-    for (idx, item) in enumerate(items)
+    symbol_fn = lift(items_ordered, l.itemization_symbol, l.enumeration_pattern) do ordered,
+            item_symbol, enum_pattern
+
+        # item_symbol = l.itemization_symbol[]
+        # bullet_match = match(r"^\s*(\*|\+|-)", item_symbol)
+        # item_symbol = if !isnothing(bullet_match)
+        #     # escape bullet for Markdown.parse
+        #     offset = bullet_match.offset
+        #     string(item_symbol[1:offset-1], '\\', item_symbol[offset:end])
+        # end
+
+        if ordered < 0
+            return i -> item_symbol
+        else
+            format_enum_pttrn = Printf.Format(enum_pattern)
+            return i -> Printf.format(format_enum_pttrn, i+ordered-1)
+        end
+    end
+
+    # we don't listen to l.list here, because there is not yet a way to clear parts of a figure
+    # so that we can relayout the list if new elements were inserted
+    # listening to symbol_fn is then also pointless
+    for (idx, item) in enumerate(l.list[].items)
         # fmtlbl = FormattedLabel(fig_or_scene, text=symbol(idx), halign=:left, valign=:top)
         # using Label for now, because FormattedLabel promotes strings to Markdown.MD and
         # symbols like "1." would be parsed as Markdown.Lists, but the underlyinig 
         # formattedtext only works with Markdown.Paragraphs
-        lbl = Label(blockscene, text=symbol(idx), halign=:left, valign=:top)
-        push!(symbol_labels, lbl)
+        lbl = Label(l.blockscene, text=symbol_fn[](idx), halign=:left, valign=:center)
         l.layout[idx, 1] = lbl
-        l.layout[idx, 2] = FormattedLabel(blockscene, text=first(item),
-                                            halign=:left, valign=:top,
-                                            tellwidth=false, tellheight=true)
+        l.layout[idx, 2] = FormattedLabel(l.blockscene, text=first(item),
+                                          halign=:left, valign=:top,
+                                          tellwidth=false, tellheight=l.tellheight,
+                                          textsize=l.textsize, font=l.font,
+                                          lineheight=l.lineheight, rotation=l.rotation)
     end
 
-    label_fillbox = Box(blockscene, width=Fixed(1000.0 #= will be adjusted below=#), visible=false)
-    text_fillbox  = Box(blockscene, visible=false)
-    l.layout[length(items)+1, 1] = label_fillbox
-    l.layout[length(items)+1, 2] = text_fillbox
-
-    # fix width of label_fillbox to maximum width of list symbols
-    on(label_fillbox.layoutobservables.computedbbox) do bbox
-        current_w = label_fillbox.width[].x
-        max_w = 0.0
-        for lbl in symbol_labels
-            textbb = Rect2f(boundingbox(lbl.blockscene.plots[1]))
-            tw = width(textbb)
-            if max_w < tw; max_w = tw; end
-        end
-        if max_w != current_w
-            label_fillbox.width[] = Fixed(max_w)
-        end
+    on(l.textsize) do textsize
+        rowgap!(l.layout, 0.5*textsize)
+        colgap!(l.layout, 0.5*textsize)
     end
-
-    label_fillbox.layoutobservables.suggestedbbox[] = 
-        label_fillbox.layoutobservables.suggestedbbox[]
-
-    rowgap!(l.layout, 5)
-    colgap!(l.layout, 5)
 
     return l
 end
