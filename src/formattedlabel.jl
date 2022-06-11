@@ -29,7 +29,7 @@
         "Controls if the parent layout can adjust to this element's width"
         tellwidth::Bool = true
         "Controls if the parent layout can adjust to this element's height"
-        tellheight::Bool = false
+        tellheight::Bool = true
         "The align mode of the text in its parent GridLayout."
         alignmode = Inside()
         "Controls if the background is visible."
