@@ -123,8 +123,7 @@ add_slide!(pres) do fig
 ```math
     \partial_\beta F^{\alpha\beta} = \mu_0 J^\alpha 
     \qquad 
-    \partial_{\alpha} F_{\beta\gamma} + \partial_{\beta} F_{\gamma\alpha} + \partial_{\gamma}
-    F_{\alpha_\beta} = 0
+    \partial_{\alpha} F_{\beta\gamma} + \partial_{\beta} F_{\gamma\alpha} + \partial_{\gamma} F_{\alpha\beta} = 0
 ```
 """)
 end
