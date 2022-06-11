@@ -29,7 +29,7 @@
         "Controls if the parent layout can adjust to this element's width"
         tellwidth::Bool = true
         "Controls if the parent layout can adjust to this element's height"
-        tellheight::Bool = false
+        tellheight::Bool = true
         "The align mode of the text in its parent GridLayout."
         alignmode = Inside()
         "Controls if the background is visible."
@@ -62,13 +62,11 @@ function initialize_block!(l::FormattedLabel)
     fmttxt = formattedtext!(
         blockscene, l.text, position = textpos, textsize = l.textsize, font = l.font, color = l.color,
         visible = l.visible, align = (l.halign,l.valign), rotation = l.rotation, markerspace = :data,
-        justification = l.justification, lineheight = l.lineheight, word_wrap_width = word_wrap_width,
-        inspectable = false)
+        justification = l.justification, lineheight = l.lineheight, inspectable = false,
+        word_wrap_width=word_wrap_width)
 
-    textbb = Ref(BBox(0, 1, 0, 1))
 
-    onany(l.text, l.textsize, l.font, l.rotation, l.padding) do text,
-            textsize, font, rotation, padding
+    onany(l.text, l.textsize, l.font, l.rotation, word_wrap_width, l.padding) do _, _, _, _, _, padding
         textbb[] = Rect2f(boundingbox(fmttxt))
         autowidth = width(textbb[]) + padding[1] + padding[2]
         autoheight = height(textbb[]) + padding[3] + padding[4]
@@ -80,43 +78,48 @@ function initialize_block!(l::FormattedLabel)
         return
     end
 
-    onany(layoutobservables.computedbbox, l.padding) do bbox, padding
-
-        w = width(bbox)
-        h = height(bbox)
-        box, boy = bbox.origin
+    onany(layoutobservables.computedbbox, l.padding, l.halign, l.valign) do bbox, padding,
+            halign, valign
 
         if l.word_wrap[]
-            tw = width(layoutobservables.suggestedbbox[]) - padding[1] - padding[2]
+            tw = width(bbox) - padding[1] - padding[2]
         else
             tw = width(textbb[])
         end
         th = height(textbb[])
 
+        w, h = width(bbox), height(bbox)
+        box = bbox.origin[1]
+        boy = bbox.origin[2]
+
         tx = box
-        tx += if l.halign[] === :left
+        tx += if halign === :left
             padding[1]
-        elseif l.halign[] === :center
-            w/2
-        elseif l.halign[] === :right
-            w - padding[2]
+        elseif halign === :center
+            tw/2
+        else #halign === :right
+            tw + padding[2]
         end
         ty = boy
-        ty += if l.valign[] === :top
-            h - padding[3]
-        elseif l.valign[] === :center
-            h/2
-        elseif l.valign[] === :bottom
+        ty += if valign === :top
+            th + padding[3]
+        elseif valign === :center
+            th/2
+        else #valign === :bottom
             padding[4]
         end
+
         textpos[] = Point3f(tx, ty, 0)
 
         if l.word_wrap[] && (word_wrap_width[] != tw)
             word_wrap_width[] = tw
-            notify(l.text)
         end
+
         return
     end
+
+    notify(l.text)
+    layoutobservables.suggestedbbox[] = layoutobservables.suggestedbbox[]
 
     # background box
     strokecolor_with_visibility = lift(l.strokecolor, l.strokevisible) do col, vis
@@ -130,7 +133,7 @@ function initialize_block!(l::FormattedLabel)
     # TODO: simplify this to lines and move backgroundcolor to blockscene?
     bg = poly!(blockscene, ibbox, color = l.backgroundcolor, visible = l.backgroundvisible,
                strokecolor = strokecolor_with_visibility, strokewidth = l.strokewidth,
-               inspectable = false)
+               inspectable = false, tellwidth=l.tellwidth, tellheight=l.tellheight)
     translate!(bg, 0, 0, -10) # move behind text
 
     return l
