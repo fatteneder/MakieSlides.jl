@@ -2,11 +2,11 @@
     @forwarded_layout
     @attributes begin
         "The displayed markdown list."
-        md_list = md"""
+        list::Markdown.List = first(md"""
             - item 1
             - item 2
             - item 3
-        """
+        """.content)
         "Controls if the text is visible."
         visible::Bool = true
         "The color of the text."
@@ -32,7 +32,7 @@
         "The width setting of the text."
         width = Auto()
         "Controls if the parent layout can adjust to this element's width"
-        tellwidth::Bool = false
+        tellwidth::Bool = true
         "Controls if the parent layout can adjust to this element's height"
         tellheight::Bool = true
         "The align mode of the text in its parent GridLayout."
@@ -99,11 +99,12 @@ function initialize_block!(l::FormattedList)
         # using Label for now, because FormattedLabel promotes strings to Markdown.MD and
         # symbols like "1." would be parsed as Markdown.Lists, but the underlyinig 
         # formattedtext only works with Markdown.Paragraphs
-        lbl = Label(l.blockscene, text=symbol_fn[](idx), halign=:left, valign=:center)
+        lbl = Label(l.blockscene, text=symbol_fn[](idx), halign=:left, valign=:top,
+                   tellheight=true)
         l.layout[idx, 1] = lbl
         l.layout[idx, 2] = FormattedLabel(l.blockscene, text=first(item),
                                           halign=:left, valign=:top,
-                                          tellwidth=false, tellheight=l.tellheight,
+                                          tellwidth=false, tellheight=true,
                                           textsize=l.textsize, font=l.font,
                                           lineheight=l.lineheight, rotation=l.rotation)
     end
