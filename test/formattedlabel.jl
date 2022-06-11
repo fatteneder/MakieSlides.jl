@@ -19,16 +19,42 @@ lots of text blabla
 
 sers
 """,
-tellwidth=false, backgroundvisible=true, padding=(0.0,0.0,0.0,0.0))
+tellwidth=false, backgroundvisible=true)
 
-lbl = Label(f[1,2],
+lbl = FormattedLabel(f[1,2],
 """
 Label
 *Label*
 **Label**
 `Label`
-""", tellwidth=false, halign=:left, valign=:top)
+""",
+tellwidth=false, backgroundvisible=true)
 
-box = Box(f[2,:], tellheight=false, visible=false)
+lbl = FormattedLabel(f[2,1],
+"""
+lots of text blabla
+lots of text blabla
+lots of text blabla
+lots of text blabla
+lots of text blabla
+
+lots of text blabla
+lots of text blabla
+lots of text blabla
+lots of text blabla
+lots of text blabla
+
+sers
+""",
+tellwidth=false, backgroundvisible=true)
+
+lbl = FormattedLabel(f[2,2],
+"""
+Label
+*Label*
+**Label**
+`Label`
+""",
+tellwidth=false, backgroundvisible=true)
 
 f
