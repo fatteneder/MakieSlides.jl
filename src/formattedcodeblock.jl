@@ -2,19 +2,19 @@
     @forwarded_layout
     @attributes begin
         "The displayed text string."
-        code::Markdown.MD = md"""
+        code::Markdown.Code = first(md"""
             ```julia
             function main()
                 println("Hello, world!")
             end
             ```
-            """
+            """.content)
         "Controls if the text is visible."
         visible::Bool = true
         "The color of the text."
         color::RGBAf = inherit(scene, :textcolor, :black)
         "The font size of the text."
-        textsize::Float32 = inherit(scene, :fontsize, 16f0)
+        textsize::Float32 = inherit(scene, :fontsize, 20f0)
         "The font family of the text."
         font::Makie.FreeTypeAbstraction.FTFont = inherit(scene, :font, "DejaVu Sans")
         "The lineheight multiplier for the text."
@@ -47,10 +47,19 @@
         strokecolor::RGBAf = RGBf(0, 0, 0)
         "The syntax highlighting theme."
         codestyle::Symbol = :material
+        "The code language."
+        language::Symbol = :julia
     end
 end
 
 
+function FormattedCodeblock(x, md::Markdown.MD; kwargs...)
+    code = first(md.content)
+    if !(code isa Markdown.Code)
+        error("Failed to extract code snippet.")
+    end
+    FormattedCodeblock(x, code; kwargs...)
+end
 FormattedCodeblock(x, code; kwargs...) = FormattedCodeblock(x, code = code; kwargs...)
 
 
@@ -61,14 +70,7 @@ function initialize_block!(l::FormattedCodeblock)
     textpos = Observable(Point3f(0, 0, 0))
     textbb = Ref(BBox(0, 1, 0, 1))
 
-    code = first(l.code[].content)
-    if !(code isa Markdown.Code)
-        error("Failed to extract code snippet. Make sure your Markdown only contains a single \
-              ``` ... ``` block.")
-    end
-
     all_styles = Symbol.(collect(pygments_styles.get_all_styles()))
-
     pygstyler = lift(l.codestyle) do style
         if !(style in all_styles)
             @warn "Could not find style '$style', using friendly."
@@ -78,16 +80,30 @@ function initialize_block!(l::FormattedCodeblock)
         pygstyler = pygments_styles.get_style_by_name(string(style))
     end
 
+    all_lexers = lowercase.(first.(collect(pygments_lexers.get_all_lexers())))
+    pyglexer = lift(l.language) do lang
+        if !(string(lang) in all_lexers)
+            @warn "Language '$lang' not supported, using julia."
+            lang = :julia
+            l.language[] = lang
+        end
+        pyglexer = pygments_lexers.get_lexer_by_name(string(lang))
+    end
+
     backgroundcolor = lift(pygstyler) do styler
         parse(RGBAf, styler.background_color)
     end
 
-    # the text
+    code = lift(l.code) do code
+        code.code
+    end
+
     fmtcode = formattedcode!(
-        blockscene, code, position = textpos, textsize = l.textsize, 
+        blockscene, code, position = textpos, textsize = l.textsize,
         font = l.font, visible = l.visible, align = (:left, :top), 
         rotation = l.rotation, markerspace = :data, justification = :left,
-        lineheight = l.lineheight, inspectable = false, pygstyler = pygstyler
+        lineheight = l.lineheight, inspectable = false,
+        pygstyler = pygstyler, pyglexer = pyglexer
     )
 
     onany(layoutobservables.computedbbox, l.padding, l.halign, l.valign) do bbox, 

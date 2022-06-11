@@ -21,7 +21,7 @@ Plots `Markdown` formatted text.
         markerspace = :pixel,
         offset = (0.0, 0.0),
         inspectable = theme(scene, :inspectable),
-        maxwidth = 0.0
+        word_wrap_width = 0.0
     )
 end
 
@@ -63,68 +63,53 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
     text = plot[:text]
     linewrap_positions = Observable(Int64[])
 
+    text_elements_fonts = Observable(Tuple{String,Makie.FreeTypeAbstraction.FTFont}[])
+    onany(text, plot.font) do paragraph, font
+        empty!(text_elements_fonts.val)
+        for md_element in paragraph.content
+            element_string, element_ft_font = if md_element isa Markdown.Bold
+                first(md_element.text), to_bold_font(font)
+            elseif md_element isa Markdown.Italic
+                first(md_element.text), to_italic_font(font)
+            elseif md_element isa Markdown.Code
+                md_element.code, to_code_font(font)
+            elseif md_element isa String
+                md_element, to_font(font)
+            else
+                error("Cannot handle paragraph text element '$(md_element)' which " *
+                      "is of type '$(typeof(md_element))'")
+            end
+            push!(text_elements_fonts.val, (element_string, element_ft_font))
+        end
+        notify(text_elements_fonts)
+    end
+
     # attach a function to any text that calculates the glyph layout and stores it
-    glyphcollection_emojicollection = lift(text, plot.textsize, plot.font, plot.align,
-            plot.rotation, plot.justification, plot.lineheight,
-            plot.color, plot.strokecolor, plot.strokewidth, linewrap_positions) do str,
-                ts, f, al, rot, jus, lh, col, scol, swi, positions
+    glyphcollection = Observable{Makie.GlyphCollection}()
+    emojicollection = Observable{Vector{Tuple{String,Int64}}}()
+    onany(text_elements_fonts, plot.textsize, plot.align, plot.rotation, 
+          plot.justification, plot.lineheight, plot.color, plot.strokecolor, plot.strokewidth, 
+          plot.word_wrap_width) do elements_fonts, ts, al, rot, jus, lh, col, scol, swi, www
 
         ts = to_textsize(ts)
-        f = to_font(f)
         rot = to_rotation(rot)
         col = to_color(col)
         scol = to_color(scol)
 
-        layout_formatted_text(str, positions, ts, f, al, rot, jus, lh, col, scol, swi)
+        glc, emc = layout_formatted_text(elements_fonts, ts, al, rot, jus, lh, col, scol, swi, www)
+        glyphcollection[] = glc
+        emojicollection[] = emc
     end
 
-    # since lift can only return one Observable at a time we have to unpack
-    # glyphcollection_emojicollection here
-    glyphcollection = Observable(glyphcollection_emojicollection[][1])
-    emojicollection = Observable(glyphcollection_emojicollection[][2])
-    glyphbbs = Observable(gl_bboxes(glyphcollection_emojicollection[][1]))
-    on(glyphcollection_emojicollection) do gc_ec
-        gc, ec = gc_ec
-        glyphcollection[] = gc
-        emojicollection[] = ec
-        glyphbbs[] = gl_bboxes(gc)
+    notify(plot.text)
+    textplot = text!(plot, glyphcollection; plot.attributes...)
+
+    glyphbbs = lift(glyphcollection) do glc
+        gl_bboxes(glc)
     end
-
-    default_glyphs   = glyphcollection[].glyphs
-    default_glyphbbs = gl_bboxes(glyphcollection[])
-    on(plot.maxwidth) do maxwidth
-
-        # split up glyphs and bboxes into blocks corresponding to the parapgrah blocks that
-        # are separated by empty lines
-        splits = [ firstindex(default_glyphs),
-                   findall(g -> g == '\n', default_glyphs)...,
-                   lastindex(default_glyphs) ]
-        s1, s2 = @view(splits[1:end-1]), @view(splits[2:end])
-        glyph_blocks     = [ view( default_glyphs,
-                                  (n == 1 ? i1 : i1+1):(n == length(splits)-1 ? i2 : i2-1)
-                                 )
-                             for (n, (i1, i2)) in enumerate(zip(s1, s2)) ]
-        glyphbbox_blocks = [ view( default_glyphbbs,
-                                  (n == 1 ? i1 : i1+1):(n == length(splits)-1 ? i2 : i2-1)
-                                 )
-                            for (n, (i1, i2)) in enumerate(zip(s1, s2)) ]
-        linewrap_positions_per_block = estimate_linewrap_positions.(glyph_blocks, 
-                                                                    glyphbbox_blocks,
-                                                                    maxwidth)
-        # add index offsets
-        for (idx, offset) in enumerate(s1)
-            linewrap_positions_per_block[idx] .+= idx == 1 ? 0 : offset
-        end
-
-        linewrap_positions[] = vcat(linewrap_positions_per_block...)
-    end
-
-    plot.maxwidth[] = plot.maxwidth[]
-
-    txt = text!(plot, glyphcollection; plot.attributes...)
 
     on(emojicollection) do ec
-        # txtbbox = Rect2f(boundingbox(txt))
+        # txtbbox = Rect2f(boundingbox(textplot))
         # bbox = Rect2f(0,0,0,0)
         # for bb in glyphbbs[]
         #     display(bb.origin)
@@ -142,45 +127,7 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
         end
     end
 
-    notify(glyphcollection_emojicollection)
-
     plot
-end
-
-
-function estimate_linewrap_positions(glyphs, glyphbbs, maxwidth)
-    fullwidth = sum(width.(glyphbbs))
-    (maxwidth <= 0 || maxwidth > fullwidth) && return Int64[]
-    N = length(glyphs)
-    @assert N == length(glyphbbs)
-    positions = Int64[]
-    last_linewrap_pos, accumulated_width, pos = 1, 0, 1
-    while pos <= N
-        bb = glyphbbs[pos]
-        accumulated_width += width(bb)
-        if accumulated_width > maxwidth
-            # time to wrap, search backwards for first whitespace
-            whitespace_pos = pos
-            for j = reverse(last_linewrap_pos+1:pos-1)
-                if glyphs[j] == ' '; whitespace_pos = j; break; end
-            end
-            if whitespace_pos == pos
-                # failed to find any whitespace and exact wrapping has now failed
-                # we search forwards for the next whitespace
-                # this will yield overly high boundingboxes -- is that an issue?
-                while whitespace_pos <= N
-                    if glyphs[whitespace_pos] == ' '; break; end
-                    whitespace_pos += 1
-                end
-            end
-            push!(positions, whitespace_pos)
-            accumulated_width, last_linewrap_pos = 0, whitespace_pos
-            pos = last_linewrap_pos + 1 # + 1 to skip the whitespace at which we line wrap
-        else
-            pos += 1
-        end
-    end
-    return positions
 end
 
 
@@ -223,86 +170,59 @@ to_code_font(x::Vector{NativeFont}) = x
 
 
 function layout_formatted_text(
-        paragraph::Markdown.Paragraph, linewrap_positions::Vector{Int64},
-        textsize::Union{AbstractVector, Number},
-        font, align, rotation, justification, lineheight, color, strokecolor, strokewidth
+        text_elements_fonts::Vector{Tuple{String,Makie.FreeTypeAbstraction.FTFont}},
+        textsize::Union{AbstractVector, Number}, align, rotation, justification, lineheight,
+        color, strokecolor, strokewidth, word_wrap_width
     )
 
     rscale = to_textsize(textsize)
     rot = to_rotation(rotation)
 
-    string = ""
+    text = ""
     fontperchar = Any[]
     textsizeperchar = Any[]
     colorperchar = Any[]
     emojicollection = Tuple{String,Int64}[]
     scanned_position = 0
-    iter = iterate(linewrap_positions)
-    for textelement in paragraph.content
-
-        textelement_string, textelement_ft_font = if textelement isa Markdown.Bold
-            first(textelement.text), to_bold_font(font)
-        elseif textelement isa Markdown.Italic
-            first(textelement.text), to_italic_font(font)
-        elseif textelement isa Markdown.Code
-            textelement.code, to_code_font(font)
-        elseif textelement isa String
-            textelement, to_font(font)
-        else
-            error("Cannot handle paragraph text element '$(textelement)' which " *
-                  "is of type '$(typeof(textelement))'")
-        end
+    for (element, font) in text_elements_fonts
 
         # replace emojis here which are given by the syntax :emoij_shorthand:
-        textelement_emojis = Tuple{String,Int64}[]
-        m = match(RGX_EMOJI, textelement_string)
+        element_emojis = Tuple{String,Int64}[]
+        m = match(RGX_EMOJI, element)
         while !isnothing(m)
             # query shorthands and replace them with a placeholder character
             # later we plot the actual emoji ontop of the placeholder
             e = first(m.captures)
             isunknown = !(e in keys(EMOJIS_MAP))
             placeholder_e = isunknown ? '\UFFFD' #= � =# : first(EMOJIS_MAP[e])
-            start_pos     = prevind(textelement_string, m.offset) # starting colon
-            end_pos       = nextind(textelement_string, m.offset+length(e)+1) # ending colon
-            textelement_string = textelement_string[1:start_pos] * "$placeholder_e" *
-                textelement_string[end_pos:end]
-            !isunknown && push!(textelement_emojis, (e, scanned_position+m.offset))
-            m = match(RGX_EMOJI, textelement_string)
+            pos_lhs_colon = prevind(element, m.offset)
+            pos_rhs_colon = nextind(element, m.offset+length(e)+1)
+            element = element[1:pos_lhs_colon] * "$placeholder_e" * element[pos_rhs_colon:end]
+            !isunknown && push!(element_emojis, (e, scanned_position+m.offset))
+            m = match(RGX_EMOJI, element)
         end
-        append!(emojicollection, textelement_emojis)
+        append!(emojicollection, element_emojis)
 
-        textelement_length = length(textelement_string)
+        scanned_position += length(element)
+        text = text * element
 
-        while iter !== nothing 
-            next_linewrap_position, state = iter
-            next_linewrap_position > scanned_position + textelement_length && break
-            # whitespace in current textelement
-            whitespace_position = next_linewrap_position - scanned_position
-            textelement_string = textelement_string[1:whitespace_position-1] * "\n" *
-                             textelement_string[whitespace_position+1:end]
-            textelement_length = length(textelement_string)
-            iter = iterate(linewrap_positions, state)
-        end
-
-        scanned_position += textelement_length
-        string = string * textelement_string
-
-        textelement_fontperchar = Makie.attribute_per_char(textelement_string, textelement_ft_font)
-        textelement_textsizeperchar = Makie.attribute_per_char(textelement_string, rscale)
-        textelement_colorperchar = collect(Makie.attribute_per_char(textelement_string, color))
+        element_fontperchar = Makie.attribute_per_char(element, font)
+        element_textsizeperchar = Makie.attribute_per_char(element, rscale)
+        element_colorperchar = collect(Makie.attribute_per_char(element, color))
 
         # make emoji placeholders transparent
-        for (e, pos) in textelement_emojis
-            textelement_colorperchar[pos] = RGBA{Float32}(0,0,0,0)
+        for (_, pos) in element_emojis
+            element_colorperchar[pos] = RGBA{Float32}(0,0,0,0)
         end
 
-        append!(fontperchar, textelement_fontperchar)
-        append!(textsizeperchar, textelement_textsizeperchar)
-        append!(colorperchar, textelement_colorperchar)
+        append!(fontperchar, element_fontperchar)
+        append!(textsizeperchar, element_textsizeperchar)
+        append!(colorperchar, element_colorperchar)
     end
 
-    glyphcollection = Makie.glyph_collection(string, fontperchar, textsizeperchar, align[1],
-        align[2], lineheight, justification, rot, colorperchar, strokecolor, strokewidth)
+    glyphcollection = Makie.glyph_collection(text, fontperchar, textsizeperchar, align[1],
+        align[2], lineheight, justification, rot, colorperchar, strokecolor, strokewidth,
+        word_wrap_width)
 
     return glyphcollection, emojicollection
 end
