@@ -65,6 +65,7 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
 
     text_elements_fonts = Observable(Tuple{String,Makie.FreeTypeAbstraction.FTFont}[])
     onany(text, plot.font) do paragraph, font
+        empty!(text_elements_fonts.val)
         for md_element in paragraph.content
             element_string, element_ft_font = if md_element isa Markdown.Bold
                 first(md_element.text), to_bold_font(font)
