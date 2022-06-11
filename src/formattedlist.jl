@@ -100,7 +100,7 @@ function initialize_block!(l::FormattedList)
         # symbols like "1." would be parsed as Markdown.Lists, but the underlyinig 
         # formattedtext only works with Markdown.Paragraphs
         lbl = Label(l.blockscene, text=symbol_fn[](idx), halign=:left, valign=:top,
-                   tellheight=true)
+                    tellwidth=true, word_wrap=false)
         l.layout[idx, 1] = lbl
         l.layout[idx, 2] = FormattedLabel(l.blockscene, text=first(item),
                                           halign=:left, valign=:top,
