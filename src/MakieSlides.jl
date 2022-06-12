@@ -259,20 +259,31 @@ end
 const pygments = PyCall.PyNULL()
 const pygments_lexers = PyCall.PyNULL()
 const pygments_styles = PyCall.PyNULL()
-const RGX_EMOJI = r":([a-zA-Z0-9_-]+):"
+const RGX_EMOJI = r":([a-zA-Z0-9-\+]+):"
 const EMOJIS_MAP = Dict{String,String}()
 const EMOJIS_PNGPATH = normpath(joinpath(@__DIR__, "..", "assets", "openmoji_png"))
 
 
-function emoji_filename(shorthand::String)
+function emoji_filename(shorthand::String, use_all_code_points=true)
     !haskey(EMOJIS_MAP, shorthand) && error("Unknown emoji shorthand '$shorthand'")
     emoji = EMOJIS_MAP[shorthand]
-    unicodes = [ @sprintf "%X" codepoint(c) for c in emoji ]
-    join(unicodes, "-")
+    if use_all_code_points
+        unicodes = [ @sprintf "%04X" codepoint(c) for c in emoji ]
+        return join(unicodes, "-")
+    else
+        return @sprintf "%04X" codepoint(emoji[begin])
+    end
 end
 
-emoji_filename_png(shorthand::String) =
-    joinpath(EMOJIS_PNGPATH, emoji_filename(shorthand) * ".png")
+function emoji_filename_png(shorthand::String)
+    filename = joinpath(EMOJIS_PNGPATH, emoji_filename(shorthand) * ".png")
+    isfile(filename) && return filename
+    filename = joinpath(EMOJIS_PNGPATH, emoji_filename(shorthand, false) * ".png")
+    isfile(filename) && return filename
+    emoji = EMOJIS_MAP[shorthand]
+    error("No emoji png file found for shorthand '$shorthand' and unicode sequence " *
+          "$(emoji_filename(shorthand))")
+end
 
 function load_emoji_image(filename)
     img = load(filename)
@@ -280,13 +291,15 @@ function load_emoji_image(filename)
 end
 
 
-# Just to make sure
 function __init__()
-    GLMakie.activate!()
+    GLMakie.activate!() # Just to make sure
     copy!(pygments, PyCall.pyimport_conda("pygments", "pygments"))
     copy!(pygments_lexers, PyCall.pyimport_conda("pygments.lexers", "pygments"))
     copy!(pygments_styles, PyCall.pyimport_conda("pygments.styles", "pygments"))
-    copy!(EMOJIS_MAP, JSON.parsefile(joinpath(@__DIR__, "..", "assets", "emojis.json")))
+    emojis_map = JSON.parsefile(joinpath(@__DIR__, "..", "assets", "emojis.json"))
+    # replace all _ in shorthands with -, because _ is parsed as emphasis in Markdown
+    md_emojis_map = Dict( [ replace(sh, "_" => "-") => e for (sh, e) in pairs(emojis_map) ] )
+    copy!(EMOJIS_MAP, md_emojis_map)
     if !isdir(EMOJIS_PNGPATH)
         unzip(joinpath(@__DIR__, "..", "assets", "openmoji-png-color.zip"),
               EMOJIS_PNGPATH)
