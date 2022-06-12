@@ -150,6 +150,9 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
     plot
 end
 
+# Don't draw the emoji scatter in CairoMakie, since it should be able to render the text directly
+CairoMakie.draw_plot(scene::Scene, screen::CairoMakie.CairoScreen, txt::T) where T <: FormattedText = CairoMakie.draw_atomic(scene, screen, txt.plots[1])
+
 
 function Makie.convert_arguments(::Type{<: FormattedText}, ::Union{Markdown.Admonition, 
                                                          Markdown.BlockQuote,
