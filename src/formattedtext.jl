@@ -122,6 +122,7 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
 
         anchor = Point2f(plot.position[])
         gc = glyphcollection[]
+
         for (shorthand, pos) in ec
             glyph_bb, extent = Makie.FreeTypeAbstraction.metrics_bb(
                 gc.glyphs[pos], gc.fonts[pos], gc.scales[pos])
@@ -140,10 +141,12 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
     end
 
     # place emojis
-    scatter!(plot, emoji_positions; 
-             marker = emoji_images, markersize = emoji_sizes, space = plot.space, 
-             markerspace = plot.markerspace, marker_offset = emoji_offsets)
     notify(emojicollection)
+    if length(emojicollection[]) > 0
+        scatter!(plot, emoji_positions;
+            marker = emoji_images, markersize = emoji_sizes, space = plot.space,
+            markerspace = plot.markerspace, marker_offset = emoji_offsets)
+    end
 
     plot
 end
