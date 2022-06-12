@@ -223,31 +223,27 @@ function layout_formatted_text(
     fontperchar = Any[]
     textsizeperchar = Any[]
     colorperchar = Any[]
-    emojicollection = Tuple{String,Int64}[]
-    scanned_position = 0
+    emojicollection = Tuple{String,Int64}[] # (shorthand, char index in text)
+    scanned_chars = 0
     for (element, font) in text_elements_fonts
 
-        # replace emojis here which are given by the syntax :emoij_shorthand:
+        # query shorthands and replace them with a placeholder character
+        # later we plot the actual emoji ontop of the placeholder
         element_emojis = Tuple{String,Int64}[]
         m = match(RGX_EMOJI, element)
         while !isnothing(m)
-            println(element[m.offset])
-            # query shorthands and replace them with a placeholder character
-            # later we plot the actual emoji ontop of the placeholder
             e = first(m.captures)
-            isunknown = !(e in keys(EMOJIS_MAP))
-            # TODO Figure out the character indices, because match returns code unit indices.
-            placeholder_e = isunknown ? '\UFFFD' #= � =# : first(EMOJIS_MAP[e])
+            placeholder_e = '\UFFFD'
             pos_lhs_colon = prevind(element, m.offset)
             pos_rhs_colon = nextind(element, m.offset+ncodeunits(e)+1)
             element = element[begin:pos_lhs_colon] * "$placeholder_e" * element[pos_rhs_colon:end]
-            !isunknown && push!(element_emojis, (e, scanned_position+m.offset))
+            isunknown = !(e in keys(EMOJIS_MAP))
+            !isunknown && push!(element_emojis, (e, scanned_chars+length(element[begin:m.offset])))
             m = match(RGX_EMOJI, element)
         end
         append!(emojicollection, element_emojis)
-        println(emojicollection)
 
-        scanned_position += ncodeunits(element)
+        scanned_chars += length(element)
         text = text * element
 
         element_fontperchar = Makie.attribute_per_char(element, font)
