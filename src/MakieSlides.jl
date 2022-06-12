@@ -259,7 +259,7 @@ end
 const pygments = PyCall.PyNULL()
 const pygments_lexers = PyCall.PyNULL()
 const pygments_styles = PyCall.PyNULL()
-const RGX_EMOJI = r":([a-zA-Z0-9-\+]+):"
+const RGX_EMOJI = r":([^\s]+):"
 const EMOJIS_MAP = Dict{String,String}()
 const EMOJIS_PNGPATH = normpath(joinpath(@__DIR__, "..", "assets", "openmoji_png"))
 
