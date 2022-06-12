@@ -262,6 +262,8 @@ const pygments_styles = PyCall.PyNULL()
 const RGX_EMOJI = r":([^\s]+):"
 const EMOJIS_MAP = Dict{String,String}()
 const EMOJIS_PNGPATH = normpath(joinpath(@__DIR__, "..", "assets", "openmoji_png"))
+const EMOJIS_PADDING = 12f0
+const EMOJIS_SIZE = 71f0
 
 
 function emoji_filename(shorthand::String, use_all_code_points=true)
