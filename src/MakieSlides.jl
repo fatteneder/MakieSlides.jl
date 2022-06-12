@@ -261,12 +261,13 @@ const pygments_lexers = PyCall.PyNULL()
 const pygments_styles = PyCall.PyNULL()
 const RGX_EMOJI = r":([^\s]+):"
 const EMOJIS_MAP = Dict{String,String}()
-const EMOJIS_PNGPATH = normpath(joinpath(@__DIR__, "..", "assets", "openmoji_png"))
+const EMOJIS_PNG_PATH = normpath(joinpath(@__DIR__, "..", "assets", "openmoji_png"))
 const EMOJIS_PADDING = 12f0
 const EMOJIS_SIZE = 71f0
+const EMOJIS_PNG_CACHE = Dict{String,Matrix{RGBAf}}()
 
 
-function emoji_filename(shorthand::String, use_all_code_points=true)
+function emoji_filename(shorthand, use_all_code_points=true)
     !haskey(EMOJIS_MAP, shorthand) && error("Unknown emoji shorthand '$shorthand'")
     emoji = EMOJIS_MAP[shorthand]
     if use_all_code_points
@@ -277,19 +278,23 @@ function emoji_filename(shorthand::String, use_all_code_points=true)
     end
 end
 
-function emoji_filename_png(shorthand::String)
-    filename = joinpath(EMOJIS_PNGPATH, emoji_filename(shorthand) * ".png")
+function emoji_filename_png(shorthand)
+    filename = joinpath(EMOJIS_PNG_PATH, emoji_filename(shorthand) * ".png")
     isfile(filename) && return filename
-    filename = joinpath(EMOJIS_PNGPATH, emoji_filename(shorthand, false) * ".png")
+    filename = joinpath(EMOJIS_PNG_PATH, emoji_filename(shorthand, false) * ".png")
     isfile(filename) && return filename
     emoji = EMOJIS_MAP[shorthand]
     error("No emoji png file found for shorthand '$shorthand' and unicode sequence " *
           "$(emoji_filename(shorthand))")
 end
 
-function load_emoji_image(filename)
+function load_emoji_image(shorthand)
+    haskey(EMOJIS_PNG_CACHE, shorthand) && return EMOJIS_PNG_CACHE[shorthand]
+    filename = emoji_filename_png(shorthand)
     img = load(filename)
-    convert.(RGBAf, img)
+    img = convert.(RGBAf, img)
+    EMOJIS_PNG_CACHE[shorthand] = img
+    return img
 end
 
 
@@ -302,9 +307,8 @@ function __init__()
     # replace all _ in shorthands with -, because _ is parsed as emphasis in Markdown
     md_emojis_map = Dict( [ replace(sh, "_" => "-") => e for (sh, e) in pairs(emojis_map) ] )
     copy!(EMOJIS_MAP, md_emojis_map)
-    if !isdir(EMOJIS_PNGPATH)
-        unzip(joinpath(@__DIR__, "..", "assets", "openmoji-png-color.zip"),
-              EMOJIS_PNGPATH)
+    if !isdir(EMOJIS_PNG_PATH)
+        unzip(joinpath(@__DIR__, "..", "assets", "openmoji-png-color.zip"), EMOJIS_PNG_PATH)
     end
 end
 

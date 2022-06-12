@@ -123,13 +123,12 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
         anchor = Point2f(plot.position[])
         gc = glyphcollection[]
         for (shorthand, pos) in ec
-            filename = emoji_filename_png(shorthand)
             glyph_bb, extent = Makie.FreeTypeAbstraction.metrics_bb(
                 gc.glyphs[pos], gc.fonts[pos], gc.scales[pos])
 
             scaled_pad = EMOJIS_PADDING * gc.scales[pos] / EMOJIS_SIZE
             push!(emoji_positions.val, Point2f(gc.origins[pos]) + anchor)
-            push!(emoji_images.val, load_emoji_image(filename))
+            push!(emoji_images.val, load_emoji_image(shorthand))
             push!(emoji_sizes.val, widths(glyph_bb) + 2scaled_pad)
             push!(emoji_offsets.val, minimum(glyph_bb) - scaled_pad)
         end
