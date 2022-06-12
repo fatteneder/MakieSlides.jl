@@ -101,20 +101,16 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
         emojicollection[] = emc
     end
 
+    # render text
     notify(plot.text)
     textplot = text!(plot, glyphcollection; plot.attributes...)
 
-    glyphbbs = lift(glyphcollection) do glc
-        gl_bboxes(glc)
-    end
-
-    textbb = Ref(BBox(0, 1, 0, 1))
+    # determine which emojis to load and where to place them
     emoji_positions = Observable{Vector{Point2f}}(Point2f[(0,0)])
     emoji_images    = Observable{Vector{Matrix{RGBAf}}}(Matrix{RGBAf}[rand(RGBAf, 1,1)])
     emoji_sizes     = Observable{Vector{Vec2f}}(Vec2f[(0,0)])
     emoji_offsets   = Observable{Vector{Vec2f}}(Vec2f[(0,0)])
     onany(emojicollection, plot.align) do ec, align
-        # empty and size all arrays
         empty!(emoji_positions.val)
         empty!(emoji_images.val)
         empty!(emoji_sizes.val)
@@ -124,45 +120,25 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
         sizehint!(emoji_sizes.val, length(ec))
         sizehint!(emoji_offsets.val, length(ec))
 
-        textbb[] = Rect2f(boundingbox(textplot))
-        box, boy = textbb[].origin
-        w, h = width(textbb[]), height(textbb[])
-        println("(box, boy, w, h) = ($box, $boy, $w, $h)")
-        halign, valign = align
-        anchor_x = if halign === :left
-            box
-        elseif halign === :center
-            box + w/2
-        else #halign === :right
-            box + w
-        end
-        anchor_y = if valign === :top
-            boy + h
-        elseif valign === :center
-            boy + h/2
-        else #valign === :bottom
-            boy
-        end
-        anchor = Point2f(anchor_x, anchor_y)
-
-        positions, char_offsets, quad_offsets, uvs, scales = Makie.text_quads(
-            Vec2f(textplot.attributes.position[][1:2]), glyphcollection[], Vec2f(0), Makie.transform_func_obs(textplot.parent)[])
-
+        anchor = Point2f(plot.position[])
+        gc = glyphcollection[]
         for (shorthand, pos) in ec
             filename = emoji_filename_png(shorthand)
-            push!(emoji_positions.val, Point2f(char_offsets[pos][1:2]) + anchor)
+            glyph_bb, extent = Makie.FreeTypeAbstraction.metrics_bb(
+                gc.glyphs[pos], gc.fonts[pos], gc.scales[pos])
+            push!(emoji_positions.val, Point2f(gc.origins[pos]) + anchor)
             push!(emoji_images.val, load_emoji_image(filename))
-            push!(emoji_sizes.val, scales[pos])
-            push!(emoji_offsets.val, quad_offsets[pos])
+            push!(emoji_sizes.val, widths(glyph_bb))
+            push!(emoji_offsets.val, minimum(glyph_bb))
         end
 
-        # notify all observables in sequence
         notify(emoji_positions)
         notify(emoji_images)
         notify(emoji_sizes)
         notify(emoji_offsets)
     end
 
+    # place emojis
     scatter!(plot, emoji_positions; 
              marker = emoji_images, markersize = emoji_sizes, space = plot.space, 
              markerspace = plot.markerspace, marker_offset = emoji_offsets)
@@ -252,7 +228,7 @@ function layout_formatted_text(
 
         # make emoji placeholders transparent
         for (_, pos) in element_emojis
-            element_colorperchar[pos] = RGBA{Float32}(0,0,0,1)
+            element_colorperchar[pos] = RGBA{Float32}(0,0,0,0)
         end
 
         append!(fontperchar, element_fontperchar)
