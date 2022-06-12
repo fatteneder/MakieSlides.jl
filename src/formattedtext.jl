@@ -156,7 +156,7 @@ end
 # CairoMakie.draw_plot(scene::Scene, screen::CairoMakie.CairoScreen, txt::T) where T <: FormattedText = CairoMakie.draw_atomic(scene, screen, txt.plots[1])
 
 
-function Makie.convert_arguments(::Type{<: FormattedText}, ::Union{Markdown.Admonition, 
+function Makie.convert_arguments(::Type{<: FormattedText}, md::Union{Markdown.Admonition, 
                                                          Markdown.BlockQuote,
                                                          Markdown.Bold,
                                                          Markdown.Code,
@@ -172,7 +172,7 @@ function Makie.convert_arguments(::Type{<: FormattedText}, ::Union{Markdown.Admo
                                                          Markdown.MD,
                                                          Markdown.Paragraph,
                                                          Markdown.Table})
-    error("plot! method for `FormattedText` not implemented for argument type '$(typeof(plot[1]))'")
+    error("plot! method for `FormattedText` not implemented for argument type '$(md)'")
 end
 
 
