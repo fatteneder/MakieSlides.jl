@@ -31,6 +31,7 @@ content. So far we support
 - *italic text*
 - **bold text**
 - `inline code`
+- Emoijs :smile: :tada: :heart:
 
 """)
 
@@ -48,12 +49,22 @@ GLMakie.activate!()
 
 f = Figure()
 MarkdownBox(fig[1,1], md\"""
-Here goes your markdown, e.g. a shopping list with
+## Shopping list
+---
 - milk
 - cookies
 - bananas
 \"""
 ```
+""")
+
+    MarkdownBox(fig[1,2], md"""
+## Shopping list
+---
+Here goes your markdown, e.g. a shopping list with
+- milk
+- cookies
+- bananas
 """)
 
 end
@@ -134,7 +145,6 @@ add_slide!(pres) do fig
 # TODO
 
 - [-] Inline code (colored background missing)
-- [ ] Emojis
 - [ ] Links
 - [ ] Inline equations
 - [ ] Slide headers, footers, page numbers
@@ -145,9 +155,9 @@ add_slide!(pres) do fig
 end
 
 
-# # save pdf
-thisdir = basename(@__DIR__)
-MakieSlides.save(joinpath(thisdir, "presentation.pdf"), pres)
+# # # save pdf
+# thisdir = basename(@__DIR__)
+# MakieSlides.save(joinpath(thisdir, "presentation.pdf"), pres)
 
 # Move to first slide
 reset!(pres)
