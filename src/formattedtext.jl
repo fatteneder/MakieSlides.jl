@@ -9,6 +9,7 @@ Plots `Markdown` formatted text.
         default_theme(scene)...,
         color = theme(scene, :textcolor),
         font = theme(scene, :font),
+        emojifont = Makie.to_font("OpenMoji"),
         strokecolor = (:black, 0.0),
         strokewidth = 0,
         align = (:left, :bottom),
@@ -26,14 +27,14 @@ Plots `Markdown` formatted text.
 end
 
 
+Makie.convert_attribute(f, ::Makie.key"emojifont") = Makie.convert_attribute(f, Makie.key"font"())
+
 # convert strings to Markdown.MD
-function Makie.plot!(plot::FormattedText{<:Tuple{<:AbstractString}}) 
-    markdown = Markdown.parse(plot[:text][])
-    formattedtext!(plot, markdown; plot.attributes...)
+function Makie.convert_arguments(::Type{<: FormattedText}, str::AbstractString)
+    return (Markdown.parse(str),)
 end
 
-
-function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.MD}})
+function Makie.convert_arguments(::Type{<: FormattedText}, markdown:Markdown.MD)
 
     ###
     # Notes:
@@ -41,7 +42,6 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.MD}})
     # It think the way to distinguish them is to check whether one appears within the contents
     # of a Markdown.Paragraph (=^= literal) or Markdown.MD(=^= code block).
 
-    markdown = plot[1][]
     all_elements = Any[]
     for (index, element) in enumerate(markdown.content)
         if !(element isa Markdown.Paragraph)
@@ -52,9 +52,8 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.MD}})
     end
 
     one_paragraph = Markdown.Paragraph(all_elements)
-    formattedtext!(plot, one_paragraph; plot.attributes...)
-
-    plot
+    
+    return (one_paragraph,)
 end
 
 
@@ -87,16 +86,16 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
     # attach a function to any text that calculates the glyph layout and stores it
     glyphcollection = Observable{Makie.GlyphCollection}()
     emojicollection = Observable{Vector{Tuple{String,Int64}}}()
-    onany(text_elements_fonts, plot.textsize, plot.align, plot.rotation, 
+    onany(text_elements_fonts, plot.emojifont, plot.textsize, plot.align, plot.rotation, 
           plot.justification, plot.lineheight, plot.color, plot.strokecolor, plot.strokewidth, 
-          plot.word_wrap_width) do elements_fonts, ts, al, rot, jus, lh, col, scol, swi, www
+          plot.word_wrap_width) do elements_fonts, emojifont, ts, al, rot, jus, lh, col, scol, swi, www
 
         ts = to_textsize(ts)
         rot = to_rotation(rot)
         col = to_color(col)
         scol = to_color(scol)
 
-        glc, emc = layout_formatted_text(elements_fonts, ts, al, rot, jus, lh, col, scol, swi, www)
+        glc, emc = layout_formatted_text(elements_fonts, emojifont, ts, al, rot, jus, lh, col, scol, swi, www)
         glyphcollection[] = glc
         emojicollection[] = emc
     end
@@ -152,7 +151,7 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
 end
 
 
-function Makie.plot!(plot::FormattedText{<:Tuple{<:Union{Markdown.Admonition, 
+function Makie.convert_arguments(::Type{<: FormattedText}, ::Union{Markdown.Admonition, 
                                                          Markdown.BlockQuote,
                                                          Markdown.Bold,
                                                          Markdown.Code,
@@ -167,8 +166,8 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Union{Markdown.Admonition,
                                                          Markdown.List,
                                                          Markdown.MD,
                                                          Markdown.Paragraph,
-                                                         Markdown.Table}}})
-    error("plot! method not implemented for argument type '$(typeof(plot[1]))'")
+                                                         Markdown.Table})
+    error("plot! method for `FormattedText` not implemented for argument type '$(typeof(plot[1]))'")
 end
 
 
@@ -192,6 +191,7 @@ to_code_font(x::Vector{NativeFont}) = x
 
 function layout_formatted_text(
         text_elements_fonts::Vector{Tuple{String,Makie.FreeTypeAbstraction.FTFont}},
+        emojifont::Makie.FreeTypeAbstraction.FTFont,
         textsize::Union{AbstractVector, Number}, align, rotation, justification, lineheight,
         color, strokecolor, strokewidth, word_wrap_width
     )
@@ -233,6 +233,7 @@ function layout_formatted_text(
         # make emoji placeholders transparent
         for (_, pos) in element_emojis
             element_colorperchar[pos] = RGBA{Float32}(0,0,0,0)
+            element_fontperchar[pos] = emojifont
         end
 
         append!(fontperchar, element_fontperchar)
