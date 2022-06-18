@@ -28,10 +28,15 @@ end
 
 # convert strings to Markdown.MD
 function Makie.convert_arguments(::Type{<: FormattedText}, str::AbstractString)
-    return (Markdown.parse(str),)
+    md = Markdown.parse(str)
+    return Makie.convert_arguments(FormattedText, md)
 end
 
-function Makie.convert_arguments(::Type{<: FormattedText}, markdown:Markdown.MD)
+function Makie.convert_arguments(::Type{<: FormattedText}, p::Markdown.Paragraph)
+    return (p,)
+end
+
+function Makie.convert_arguments(::Type{<: FormattedText}, markdown::Markdown.MD)
 
     ###
     # Notes:
