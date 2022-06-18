@@ -9,7 +9,6 @@ Plots `Markdown` formatted text.
         default_theme(scene)...,
         color = theme(scene, :textcolor),
         font = theme(scene, :font),
-        emojifont = Makie.to_font("OpenMoji"),
         strokecolor = (:black, 0.0),
         strokewidth = 0,
         align = (:left, :bottom),
@@ -26,8 +25,6 @@ Plots `Markdown` formatted text.
     )
 end
 
-
-Makie.convert_attribute(f, ::Makie.key"emojifont") = Makie.convert_attribute(f, Makie.key"font"())
 
 # convert strings to Markdown.MD
 function Makie.convert_arguments(::Type{<: FormattedText}, str::AbstractString)
@@ -86,16 +83,16 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
     # attach a function to any text that calculates the glyph layout and stores it
     glyphcollection = Observable{Makie.GlyphCollection}()
     emojicollection = Observable{Vector{Tuple{String,Int64}}}()
-    onany(text_elements_fonts, plot.emojifont, plot.textsize, plot.align, plot.rotation, 
+    onany(text_elements_fonts, plot.textsize, plot.align, plot.rotation,
           plot.justification, plot.lineheight, plot.color, plot.strokecolor, plot.strokewidth, 
-          plot.word_wrap_width) do elements_fonts, emojifont, ts, al, rot, jus, lh, col, scol, swi, www
+          plot.word_wrap_width) do elements_fonts, ts, al, rot, jus, lh, col, scol, swi, www
 
         ts = to_textsize(ts)
         rot = to_rotation(rot)
         col = to_color(col)
         scol = to_color(scol)
 
-        glc, emc = layout_formatted_text(elements_fonts, emojifont, ts, al, rot, jus, lh, col, scol, swi, www)
+        glc, emc = layout_formatted_text(elements_fonts, ts, al, rot, jus, lh, col, scol, swi, www)
         glyphcollection[] = glc
         emojicollection[] = emc
     end
@@ -196,7 +193,6 @@ to_code_font(x::Vector{NativeFont}) = x
 
 function layout_formatted_text(
         text_elements_fonts::Vector{Tuple{String,Makie.FreeTypeAbstraction.FTFont}},
-        emojifont::Makie.FreeTypeAbstraction.FTFont,
         textsize::Union{AbstractVector, Number}, align, rotation, justification, lineheight,
         color, strokecolor, strokewidth, word_wrap_width
     )
@@ -238,7 +234,6 @@ function layout_formatted_text(
         # make emoji placeholders transparent
         for (_, pos) in element_emojis
             element_colorperchar[pos] = RGBA{Float32}(0,0,0,0)
-            element_fontperchar[pos] = emojifont
         end
 
         append!(fontperchar, element_fontperchar)
