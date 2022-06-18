@@ -152,11 +152,6 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
     plot
 end
 
-# Don't draw the emoji scatter in CairoMakie, since it should be able to render the text directly.
-# Unfortunately, Cairo does not draw emojis with colour, so we should draw PNGs (or perhaps SVGs) instead!
-# This could be used as a hook in which to do the SVG drawing.
-# CairoMakie.draw_plot(scene::Scene, screen::CairoMakie.CairoScreen, txt::T) where T <: FormattedText = CairoMakie.draw_atomic(scene, screen, txt.plots[1])
-
 
 function Makie.convert_arguments(::Type{<: FormattedText}, md::Union{Markdown.Admonition, 
                                                          Markdown.BlockQuote,
@@ -251,4 +246,49 @@ function layout_formatted_text(
         word_wrap_width)
 
     return glyphcollection, emojicollection
+end
+
+
+function CairoMakie.draw_plot(scene::Scene, screen::CairoMakie.CairoScreen, fmttxt::T) where T <: FormattedText
+
+    # render text as usual
+    txt = fmttxt.plots[1]
+    CairoMakie.draw_plot(scene, screen, txt)
+
+    # drawing scattered emojis requiers special attention
+    if length(fmttxt.plots) > 1
+
+        scttr = fmttxt.plots[2]
+        scttr_offset = CairoMakie.project_position(
+            scene, fmttxt.space[],
+            Makie.apply_transform(scene.transformation.transform_func[], fmttxt.position[]),
+            fmttxt.model[]
+        )
+        marker_positions = scttr.input_args[1]
+
+        broadcast_foreach(scttr.marker[],
+                          scttr.marker_offset[],
+                          scttr.markersize[],
+                          marker_positions[]) do marker, offset, size, position
+
+            argb32_marker = convert.(ARGB32, marker)
+            argb32_marker = permutedims(argb32_marker, (2,1))
+            marker_surf   = Cairo.CairoImageSurface(argb32_marker)
+
+            # TODO obtain scatter or text size so that we can scale emoji sizes accordingly
+            # scale = CairoMakie.project_scale(scene, scttr.space[],
+            #                                  Vec2{Float32}(w,h), scttr.model[])
+            # Cairo.scale(ctx, scale[1]/size[1], scale[2]/size[2])
+
+            ctx = screen.context
+            Cairo.save(ctx)
+            Cairo.set_source(ctx, marker_surf,
+                             # TODO adjust wrt fmttxt.align
+                             position[1] + offset[1] + scttr_offset[1],
+                             position[2] + offset[2] + scttr_offset[2])
+            Cairo.paint(ctx)
+            Cairo.restore(ctx)
+        end
+    end
+
 end
