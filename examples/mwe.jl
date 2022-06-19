@@ -13,10 +13,6 @@ end
 add_slide!(pres) do fig
     MarkdownBox(fig[1, 1], md"""
 # MarkdownBox
-""")
-
-    MarkdownBox(fig[2, 1], md"""
-# MarkdownBox
 
 ## What is a MarkdownBox?
 
@@ -44,8 +40,8 @@ add_slide!(pres) do fig
 # Code block
 
 ```
-using GLMakie
-GLMakie.activate!()
+using MakieSlides
+using Markdown
 
 f = Figure()
 MarkdownBox(fig[1,1], md\"""
@@ -54,14 +50,13 @@ MarkdownBox(fig[1,1], md\"""
 - milk
 - cookies
 - bananas
-\"""
+\""")
 ```
 """)
 
     MarkdownBox(fig[1,2], md"""
 ## Shopping list
 ---
-Here goes your markdown, e.g. a shopping list with
 - milk
 - cookies
 - bananas
@@ -132,14 +127,14 @@ add_slide!(pres) do fig
 
 ## Maxwell equations
 ```math
-    \partial_\beta F^{\alpha\beta} = \mu_0 J^\alpha 
-    \qquad 
+    \partial_\beta F^{\alpha\beta} = \mu_0 J^\alpha
+    \qquad
     \partial_{\alpha} F_{\beta\gamma} + \partial_{\beta} F_{\gamma\alpha} + \partial_{\gamma} F_{\alpha\beta} = 0
 ```
 """)
 end
 
-    
+
 add_slide!(pres) do fig
     MarkdownBox(fig[1,1], md"""
 # TODO
@@ -155,9 +150,8 @@ add_slide!(pres) do fig
 end
 
 
-# # # save pdf
-# thisdir = basename(@__DIR__)
-# MakieSlides.save(joinpath(thisdir, "presentation.pdf"), pres)
+# save pdf
+MakieSlides.save(joinpath(@__DIR__, "presentation.pdf"), pres)
 
 # Move to first slide
 reset!(pres)
