@@ -3,17 +3,20 @@ module MakieSlides
 
 using CairoMakie
 using Colors
+using FileIO
 using GLMakie
+using JSON
 using LaTeXStrings
 using Makie
 using Markdown
 using Printf
+using ZipFile
 import PyCall
 import Cairo
 
 
 # Makie internal dependencies of formattedtext.jl, formattedcode.jl
-import Makie: NativeFont, gl_bboxes, attribute_per_char, glyph_collection
+import Makie: NativeFont, gl_bboxes, attribute_per_char, glyph_collection, RGBAf
 import MakieCore: automatic
 # Makie internal dependencies of formattedlabel.jl, formattedlist, markdownbox.jl
 using Makie.MakieLayout
@@ -30,6 +33,7 @@ export formattedtext, formattedtext!
 export FormattedLabel, FormattedList, FormattedTable, MarkdownBox, FormattedCodeblock
 
 
+include("utilities.jl")
 include("formattedtext.jl")
 include("formattedlabel.jl")
 include("formattedlist.jl")
@@ -255,13 +259,57 @@ end
 const pygments = PyCall.PyNULL()
 const pygments_lexers = PyCall.PyNULL()
 const pygments_styles = PyCall.PyNULL()
+const RGX_EMOJI = r":([^\s]+):"
+const EMOJIS_MAP = Dict{String,String}()
+const EMOJIS_PNG_PATH = normpath(joinpath(@__DIR__, "..", "assets", "openmoji_png"))
+const EMOJIS_PADDING = 12f0
+const EMOJIS_SIZE = 71f0
+const EMOJIS_PNG_CACHE = Dict{String,Matrix{RGBAf}}()
 
-# Just to make sure
+
+function emoji_filename(shorthand, use_all_code_points=true)
+    !haskey(EMOJIS_MAP, shorthand) && error("Unknown emoji shorthand '$shorthand'")
+    emoji = EMOJIS_MAP[shorthand]
+    if use_all_code_points
+        unicodes = [ @sprintf "%04X" codepoint(c) for c in emoji ]
+        return join(unicodes, "-")
+    else
+        return @sprintf "%04X" codepoint(emoji[begin])
+    end
+end
+
+function emoji_filename_png(shorthand)
+    filename = joinpath(EMOJIS_PNG_PATH, emoji_filename(shorthand) * ".png")
+    isfile(filename) && return filename
+    filename = joinpath(EMOJIS_PNG_PATH, emoji_filename(shorthand, false) * ".png")
+    isfile(filename) && return filename
+    emoji = EMOJIS_MAP[shorthand]
+    error("No emoji png file found for shorthand '$shorthand' and unicode sequence " *
+          "$(emoji_filename(shorthand))")
+end
+
+function load_emoji_image(shorthand)
+    haskey(EMOJIS_PNG_CACHE, shorthand) && return EMOJIS_PNG_CACHE[shorthand]
+    filename = emoji_filename_png(shorthand)
+    img = load(filename)
+    img = convert.(RGBAf, img)
+    EMOJIS_PNG_CACHE[shorthand] = img
+    return img
+end
+
+
 function __init__()
-    GLMakie.activate!()
+    GLMakie.activate!() # Just to make sure
     copy!(pygments, PyCall.pyimport_conda("pygments", "pygments"))
     copy!(pygments_lexers, PyCall.pyimport_conda("pygments.lexers", "pygments"))
     copy!(pygments_styles, PyCall.pyimport_conda("pygments.styles", "pygments"))
+    emojis_map = JSON.parsefile(joinpath(@__DIR__, "..", "assets", "emojis.json"))
+    # replace all _ in shorthands with -, because _ is parsed as emphasis in Markdown
+    md_emojis_map = Dict( [ replace(sh, "_" => "-") => e for (sh, e) in pairs(emojis_map) ] )
+    copy!(EMOJIS_MAP, md_emojis_map)
+    if !isdir(EMOJIS_PNG_PATH)
+        unzip(joinpath(@__DIR__, "..", "assets", "openmoji-png-color.zip"), EMOJIS_PNG_PATH)
+    end
 end
 
 

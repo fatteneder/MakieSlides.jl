@@ -27,13 +27,16 @@ end
 
 
 # convert strings to Markdown.MD
-function Makie.plot!(plot::FormattedText{<:Tuple{<:AbstractString}}) 
-    markdown = Markdown.parse(plot[:text][])
-    formattedtext!(plot, markdown; plot.attributes...)
+function Makie.convert_arguments(::Type{<: FormattedText}, str::AbstractString)
+    md = Markdown.parse(str)
+    return Makie.convert_arguments(FormattedText, md)
 end
 
+function Makie.convert_arguments(::Type{<: FormattedText}, p::Markdown.Paragraph)
+    return (p,)
+end
 
-function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.MD}})
+function Makie.convert_arguments(::Type{<: FormattedText}, markdown::Markdown.MD)
 
     ###
     # Notes:
@@ -41,7 +44,6 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.MD}})
     # It think the way to distinguish them is to check whether one appears within the contents
     # of a Markdown.Paragraph (=^= literal) or Markdown.MD(=^= code block).
 
-    markdown = plot[1][]
     all_elements = Any[]
     for (index, element) in enumerate(markdown.content)
         if !(element isa Markdown.Paragraph)
@@ -52,9 +54,8 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.MD}})
     end
 
     one_paragraph = Markdown.Paragraph(all_elements)
-    formattedtext!(plot, one_paragraph; plot.attributes...)
-
-    plot
+    
+    return (one_paragraph,)
 end
 
 
@@ -85,29 +86,74 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
     end
 
     # attach a function to any text that calculates the glyph layout and stores it
-    glyphcollection = lift(text_elements_fonts, plot.textsize, plot.align,
-            plot.rotation, plot.justification, plot.lineheight,
-            plot.color, plot.strokecolor, plot.strokewidth, 
-            plot.word_wrap_width) do elements_fonts, ts, al, rot, jus, lh, col, scol, 
-                swi, word_wrap_width
+    glyphcollection = Observable{Makie.GlyphCollection}()
+    emojicollection = Observable{Vector{Tuple{String,Int64}}}()
+    onany(text_elements_fonts, plot.textsize, plot.align, plot.rotation,
+          plot.justification, plot.lineheight, plot.color, plot.strokecolor, plot.strokewidth, 
+          plot.word_wrap_width) do elements_fonts, ts, al, rot, jus, lh, col, scol, swi, www
 
         ts = to_textsize(ts)
         rot = to_rotation(rot)
         col = to_color(col)
         scol = to_color(scol)
 
-        layout_formatted_text(elements_fonts, ts, al, rot, jus, lh, col, scol, swi, word_wrap_width)
+        glc, emc = layout_formatted_text(elements_fonts, ts, al, rot, jus, lh, col, scol, swi, www)
+        glyphcollection[] = glc
+        emojicollection[] = emc
     end
 
-    text!(plot, glyphcollection; plot.attributes...)
-
+    # render text
     notify(plot.text)
+    textplot = text!(plot, glyphcollection; plot.attributes...)
+
+    # determine which emojis to load and where to place them
+    emoji_positions = Observable{Vector{Point2f}}(Point2f[(0,0)])
+    emoji_images    = Observable{Vector{Matrix{RGBAf}}}(Matrix{RGBAf}[rand(RGBAf, 1,1)])
+    emoji_sizes     = Observable{Vector{Vec2f}}(Vec2f[(0,0)])
+    emoji_offsets   = Observable{Vector{Vec2f}}(Vec2f[(0,0)])
+    onany(emojicollection, plot.align) do ec, align
+        empty!(emoji_positions.val)
+        empty!(emoji_images.val)
+        empty!(emoji_sizes.val)
+        empty!(emoji_offsets.val)
+        sizehint!(emoji_positions.val, length(ec))
+        sizehint!(emoji_images.val, length(ec))
+        sizehint!(emoji_sizes.val, length(ec))
+        sizehint!(emoji_offsets.val, length(ec))
+
+        anchor = Point2f(plot.position[])
+        gc = glyphcollection[]
+
+        for (shorthand, pos) in ec
+            glyph_bb, extent = Makie.FreeTypeAbstraction.metrics_bb(
+                gc.glyphs[pos], gc.fonts[pos], gc.scales[pos])
+
+            scaled_pad = EMOJIS_PADDING * gc.scales[pos] / EMOJIS_SIZE
+            push!(emoji_positions.val, Point2f(gc.origins[pos]) + anchor)
+            push!(emoji_images.val, load_emoji_image(shorthand))
+            push!(emoji_sizes.val, widths(glyph_bb) + 2scaled_pad)
+            push!(emoji_offsets.val, minimum(glyph_bb) - scaled_pad)
+        end
+
+        notify(emoji_positions)
+        notify(emoji_images)
+        notify(emoji_sizes)
+        notify(emoji_offsets)
+    end
+
+    # place emojis
+    notify(emojicollection)
+    if length(emojicollection[]) > 0
+        scatter!(plot, emoji_positions;
+            marker = emoji_images, markersize = emoji_sizes, space = plot.space,
+            markerspace = plot.markerspace, marker_offset = emoji_offsets)
+    end
 
     plot
 end
 
 
-function Makie.plot!(plot::FormattedText{<:Tuple{<:Union{Markdown.Admonition, 
+function Makie.convert_arguments(::Type{<: FormattedText}, md::Union{Markdown.Admonition, 
                                                          Markdown.BlockQuote,
                                                          Markdown.Bold,
                                                          Markdown.Code,
@@ -122,8 +168,8 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Union{Markdown.Admonition,
                                                          Markdown.List,
                                                          Markdown.MD,
                                                          Markdown.Paragraph,
-                                                         Markdown.Table}}})
-    error("plot! method not implemented for argument type '$(typeof(plot[1]))'")
+                                                         Markdown.Table})
+    error("plot! method for `FormattedText` not implemented for argument type '$(md)'")
 end
 
 
@@ -157,20 +203,65 @@ function layout_formatted_text(
     text = ""
     fontperchar = Any[]
     textsizeperchar = Any[]
+    colorperchar = Any[]
+    emojicollection = Tuple{String,Int64}[] # (shorthand, char index in text)
+    scanned_chars = 0
     for (element, font) in text_elements_fonts
 
+        # query shorthands and replace them with a placeholder character
+        # later we plot the actual emoji ontop of the placeholder
+        element_emojis = Tuple{String,Int64}[]
+        m = match(RGX_EMOJI, element)
+        while !isnothing(m)
+            e = first(m.captures)
+            placeholder_e = '\UFFFD'
+            pos_lhs_colon = prevind(element, m.offset)
+            pos_rhs_colon = nextind(element, m.offset+ncodeunits(e)+1)
+            element = element[begin:pos_lhs_colon] * "$placeholder_e" * element[pos_rhs_colon:end]
+            isunknown = !(e in keys(EMOJIS_MAP))
+            !isunknown && push!(element_emojis, (e, scanned_chars+length(element[begin:m.offset])))
+            m = match(RGX_EMOJI, element)
+        end
+        append!(emojicollection, element_emojis)
+
+        scanned_chars += length(element)
         text = text * element
 
         element_fontperchar = Makie.attribute_per_char(element, font)
         element_textsizeperchar = Makie.attribute_per_char(element, rscale)
+        element_colorperchar = collect(Makie.attribute_per_char(element, color))
+
+        # make emoji placeholders transparent
+        for (_, pos) in element_emojis
+            element_colorperchar[pos] = RGBA{Float32}(0,0,0,0)
+        end
 
         append!(fontperchar, element_fontperchar)
         append!(textsizeperchar, element_textsizeperchar)
+        append!(colorperchar, element_colorperchar)
     end
 
     glyphcollection = Makie.glyph_collection(text, fontperchar, textsizeperchar, align[1],
-                                             align[2], lineheight, justification, rot, color, 
-                                             strokecolor, strokewidth, word_wrap_width)
+        align[2], lineheight, justification, rot, colorperchar, strokecolor, strokewidth,
+        word_wrap_width)
 
-    return glyphcollection
+    return glyphcollection, emojicollection
+end
+
+
+function CairoMakie.draw_marker(ctx, marker::Matrix{RGBAf}, pos, scale, strokecolor,
+        strokewidth, marker_offset, rotation)
+
+    # convert markers to Cairo compatible image data
+    argb32_marker = convert.(ARGB32, marker)
+    argb32_marker = permutedims(argb32_marker, (2,1))
+    marker_surf   = Cairo.CairoImageSurface(argb32_marker)
+
+    px_scale = scale ./ size(marker)
+    Cairo.scale(ctx, px_scale[1], px_scale[2])
+    px_pos   = pos ./ px_scale
+    px_pos   = Vec2f(px_pos[1] + marker_offset[1], px_pos[2] - marker_offset[2])
+    Cairo.translate(ctx, px_pos[1], px_pos[2])
+    Cairo.set_source_surface(ctx, marker_surf, 0, 0)
+    Cairo.paint(ctx)
 end

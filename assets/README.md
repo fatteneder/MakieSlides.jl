@@ -1,0 +1,2 @@
+- [OpenMoji](https://github.com/hfg-gmuend/openmoji/releases/tag/13.1.0)
+- [Github Emoji shortcuts](https://github.com/markdown-templates/markdown-emojis/blob/master/emojis.json)
