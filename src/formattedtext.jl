@@ -249,46 +249,19 @@ function layout_formatted_text(
 end
 
 
-function CairoMakie.draw_plot(scene::Scene, screen::CairoMakie.CairoScreen, fmttxt::T) where T <: FormattedText
+function CairoMakie.draw_marker(ctx, marker::Matrix{RGBAf}, pos, scale, strokecolor,
+        strokewidth, marker_offset, rotation)
 
-    # render text as usual
-    txt = fmttxt.plots[1]
-    CairoMakie.draw_plot(scene, screen, txt)
+    # convert markers to Cairo compatible image data
+    argb32_marker = convert.(ARGB32, marker)
+    argb32_marker = permutedims(argb32_marker, (2,1))
+    marker_surf   = Cairo.CairoImageSurface(argb32_marker)
 
-    # drawing scattered emojis requiers special attention
-    if length(fmttxt.plots) > 1
-
-        scttr = fmttxt.plots[2]
-        scttr_offset = CairoMakie.project_position(
-            scene, fmttxt.space[],
-            Makie.apply_transform(scene.transformation.transform_func[], fmttxt.position[]),
-            fmttxt.model[]
-        )
-        marker_positions = scttr.input_args[1]
-
-        broadcast_foreach(scttr.marker[],
-                          scttr.marker_offset[],
-                          scttr.markersize[],
-                          marker_positions[]) do marker, offset, size, position
-
-            argb32_marker = convert.(ARGB32, marker)
-            argb32_marker = permutedims(argb32_marker, (2,1))
-            marker_surf   = Cairo.CairoImageSurface(argb32_marker)
-
-            # TODO obtain scatter or text size so that we can scale emoji sizes accordingly
-            # scale = CairoMakie.project_scale(scene, scttr.space[],
-            #                                  Vec2{Float32}(w,h), scttr.model[])
-            # Cairo.scale(ctx, scale[1]/size[1], scale[2]/size[2])
-
-            ctx = screen.context
-            Cairo.save(ctx)
-            Cairo.set_source(ctx, marker_surf,
-                             # TODO adjust wrt fmttxt.align
-                             position[1] + offset[1] + scttr_offset[1],
-                             position[2] + offset[2] + scttr_offset[2])
-            Cairo.paint(ctx)
-            Cairo.restore(ctx)
-        end
-    end
-
+    px_scale = scale ./ size(marker)
+    Cairo.scale(ctx, px_scale[1], px_scale[2])
+    px_pos   = pos ./ px_scale
+    px_pos   = Vec2f(px_pos[1] + marker_offset[1], px_pos[2] - marker_offset[2])
+    Cairo.translate(ctx, px_pos[1], px_pos[2])
+    Cairo.set_source_surface(ctx, marker_surf, 0, 0)
+    Cairo.paint(ctx)
 end
