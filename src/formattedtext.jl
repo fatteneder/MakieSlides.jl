@@ -27,13 +27,16 @@ end
 
 
 # convert strings to Markdown.MD
-function Makie.plot!(plot::FormattedText{<:Tuple{<:AbstractString}}) 
-    markdown = Markdown.parse(plot[:text][])
-    formattedtext!(plot, markdown; plot.attributes...)
+function Makie.convert_arguments(::Type{<: FormattedText}, str::AbstractString)
+    md = Markdown.parse(str)
+    return Makie.convert_arguments(FormattedText, md)
 end
 
+function Makie.convert_arguments(::Type{<: FormattedText}, p::Markdown.Paragraph)
+    return (p,)
+end
 
-function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.MD}})
+function Makie.convert_arguments(::Type{<: FormattedText}, markdown::Markdown.MD)
 
     ###
     # Notes:
@@ -41,7 +44,6 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.MD}})
     # It think the way to distinguish them is to check whether one appears within the contents
     # of a Markdown.Paragraph (=^= literal) or Markdown.MD(=^= code block).
 
-    markdown = plot[1][]
     all_elements = Any[]
     for (index, element) in enumerate(markdown.content)
         if !(element isa Markdown.Paragraph)
@@ -52,9 +54,8 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.MD}})
     end
 
     one_paragraph = Markdown.Paragraph(all_elements)
-    formattedtext!(plot, one_paragraph; plot.attributes...)
-
-    plot
+    
+    return (one_paragraph,)
 end
 
 
@@ -87,7 +88,7 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
     # attach a function to any text that calculates the glyph layout and stores it
     glyphcollection = Observable{Makie.GlyphCollection}()
     emojicollection = Observable{Vector{Tuple{String,Int64}}}()
-    onany(text_elements_fonts, plot.textsize, plot.align, plot.rotation, 
+    onany(text_elements_fonts, plot.textsize, plot.align, plot.rotation,
           plot.justification, plot.lineheight, plot.color, plot.strokecolor, plot.strokewidth, 
           plot.word_wrap_width) do elements_fonts, ts, al, rot, jus, lh, col, scol, swi, www
 
@@ -152,7 +153,7 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Markdown.Paragraph}})
 end
 
 
-function Makie.plot!(plot::FormattedText{<:Tuple{<:Union{Markdown.Admonition, 
+function Makie.convert_arguments(::Type{<: FormattedText}, md::Union{Markdown.Admonition, 
                                                          Markdown.BlockQuote,
                                                          Markdown.Bold,
                                                          Markdown.Code,
@@ -167,8 +168,8 @@ function Makie.plot!(plot::FormattedText{<:Tuple{<:Union{Markdown.Admonition,
                                                          Markdown.List,
                                                          Markdown.MD,
                                                          Markdown.Paragraph,
-                                                         Markdown.Table}}})
-    error("plot! method not implemented for argument type '$(typeof(plot[1]))'")
+                                                         Markdown.Table})
+    error("plot! method for `FormattedText` not implemented for argument type '$(md)'")
 end
 
 
@@ -245,4 +246,22 @@ function layout_formatted_text(
         word_wrap_width)
 
     return glyphcollection, emojicollection
+end
+
+
+function CairoMakie.draw_marker(ctx, marker::Matrix{RGBAf}, pos, scale, strokecolor,
+        strokewidth, marker_offset, rotation)
+
+    # convert markers to Cairo compatible image data
+    argb32_marker = convert.(ARGB32, marker)
+    argb32_marker = permutedims(argb32_marker, (2,1))
+    marker_surf   = Cairo.CairoImageSurface(argb32_marker)
+
+    px_scale = scale ./ size(marker)
+    Cairo.scale(ctx, px_scale[1], px_scale[2])
+    px_pos   = pos ./ px_scale
+    px_pos   = Vec2f(px_pos[1] + marker_offset[1], px_pos[2] - marker_offset[2])
+    Cairo.translate(ctx, px_pos[1], px_pos[2])
+    Cairo.set_source_surface(ctx, marker_surf, 0, 0)
+    Cairo.paint(ctx)
 end
