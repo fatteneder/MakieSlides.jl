@@ -61,15 +61,16 @@ function Makie.plot!(plot::FormattedCode{<:Tuple{<:AbstractString}})
     # the font size such that the boundingbox's width is smaller than plot.maxwidth.
     prev_maxwidth = 0.0
     onany(glyphcollection, plot.maxwidth) do glc, maxwidth
-        if maxwidth > 0.0 && prev_maxwidth != maxwidth
-            w = estimate_width(glyphcollection[])
-            grad_maxwidth = maxwidth - prev_maxwidth
-            prev_maxwidth = maxwidth
-            if grad_maxwidth < 0 && w > maxwidth && plot.textsize[] - 1 > 0
-                plot.textsize[] -= 1
-            elseif grad_maxwidth > 0 && w < maxwidth && plot.textsize[] + 1 <= default_textsize
-                plot.textsize[] += 1
-            end
+
+        (maxwidth <= 0.0 || prev_maxwidth == maxwidth) && return
+
+        w = estimate_width(glyphcollection[])
+        grad_maxwidth = maxwidth - prev_maxwidth
+        prev_maxwidth = maxwidth
+        if grad_maxwidth < 0 && w > maxwidth && plot.textsize[] - 1 > 0
+            plot.textsize[] -= 1
+        elseif grad_maxwidth > 0 && w < maxwidth && plot.textsize[] + 1 <= default_textsize
+            plot.textsize[] += 1
         end
     end
 
