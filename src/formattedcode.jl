@@ -48,6 +48,7 @@ function Makie.plot!(plot::FormattedCode{<:Tuple{<:AbstractString}})
     # the font size such that the boundingbox's width is smaller than plot.maxwidth.
     # We iteratively shrink it starting from plot.textsize.
     settled_on_textsize = false
+    prev_maxwidth = 0.0
 
     glyphcollection = lift(plot.code, plot.pygstyler, plot.pyglexer,
             plot.textsize, plot.font, plot.align,
@@ -69,12 +70,11 @@ function Makie.plot!(plot::FormattedCode{<:Tuple{<:AbstractString}})
     end
 
     onany(glyphcollection, plot.maxwidth) do glc, maxwidth
-        if maxwidth > 0.0
+        if maxwidth > 0.0 && prev_maxwidth != maxwidth
             w = estimate_width(glyphcollection[])
-            if w > maxwidth
-                ts = plot.textsize[] - 1
-                ts <= 0 && @warn "FormattedCode: Cannot shrink font size any further."
-                plot.textsize[] = ts
+            prev_maxwidth = maxwidth
+            if w > maxwidth && plot.textsize[] - 1 > 0
+                plot.textsize[] -= 1
             else
                 settled_on_textsize = true
             end
