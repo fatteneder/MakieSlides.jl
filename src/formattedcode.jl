@@ -44,22 +44,10 @@ function Makie.plot!(plot::FormattedCode{<:Tuple{<:AbstractString}})
 
     default_textsize = plot.textsize[]
 
-    # For codeblocks we don't want automatic line wrapping. Instead we adjust
-    # the font size such that the boundingbox's width is smaller than plot.maxwidth.
-    # We iteratively shrink it starting from plot.textsize.
-    settled_on_textsize = false
-    prev_maxwidth = 0.0
-
     glyphcollection = lift(plot.code, plot.pygstyler, plot.pyglexer,
             plot.textsize, plot.font, plot.align,
             plot.rotation, plot.justification, plot.lineheight, plot.strokecolor,
             plot.strokewidth) do code, styler, lexer, ts, f, al, rot, jus, lh, scol, swi
-
-        if settled_on_textsize
-            # any update requires us to restart the textsize iteration
-            settled_on_textsize = false
-            plot.textsize[] = default_textsize
-        end
 
         ts = to_textsize(ts)
         f = to_font(f)
@@ -69,19 +57,23 @@ function Makie.plot!(plot::FormattedCode{<:Tuple{<:AbstractString}})
         layout_code(code, styler, lexer, ts, f, al, rot, jus, lh, scol, swi)
     end
 
+    # For codeblocks we don't want automatic line wrapping. Instead we adjust
+    # the font size such that the boundingbox's width is smaller than plot.maxwidth.
+    prev_maxwidth = 0.0
     onany(glyphcollection, plot.maxwidth) do glc, maxwidth
         if maxwidth > 0.0 && prev_maxwidth != maxwidth
             w = estimate_width(glyphcollection[])
+            grad_maxwidth = maxwidth - prev_maxwidth
             prev_maxwidth = maxwidth
-            if w > maxwidth && plot.textsize[] - 1 > 0
+            if grad_maxwidth < 0 && w > maxwidth && plot.textsize[] - 1 > 0
                 plot.textsize[] -= 1
+            elseif grad_maxwidth > 0 && w < maxwidth && plot.textsize[] + 1 <= default_textsize
+                plot.textsize[] += 1
             else
                 settled_on_textsize = true
             end
         end
     end
-
-    notify(plot.maxwidth)
 
     text_attributes = copy(plot.attributes)
     delete!(text_attributes, :pygstyler)
