@@ -69,8 +69,6 @@ function Makie.plot!(plot::FormattedCode{<:Tuple{<:AbstractString}})
                 plot.textsize[] -= 1
             elseif grad_maxwidth > 0 && w < maxwidth && plot.textsize[] + 1 <= default_textsize
                 plot.textsize[] += 1
-            else
-                settled_on_textsize = true
             end
         end
     end
