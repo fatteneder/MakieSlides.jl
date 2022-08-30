@@ -44,6 +44,9 @@ function Makie.plot!(plot::FormattedCode{<:Tuple{<:AbstractString}})
 
     default_textsize = plot.textsize[]
 
+    highlights_theme = Themes.theme(Themes.TracTheme)
+    highlights_lexer = Lexers.JuliaLexer
+
     glyphcollection = lift(plot.code, plot.pygstyler, plot.pyglexer,
             plot.textsize, plot.font, plot.align,
             plot.rotation, plot.justification, plot.lineheight, plot.strokecolor,
@@ -54,7 +57,9 @@ function Makie.plot!(plot::FormattedCode{<:Tuple{<:AbstractString}})
         rot = to_rotation(rot)
         scol = to_color(scol)
 
-        layout_code(code, styler, lexer, ts, f, al, rot, jus, lh, scol, swi)
+        # layout_code_pygments(code, styler, lexer, ts, f, al, rot, jus, lh, scol, swi)
+        layout_code_highlights(code, highlights_theme, highlights_lexer,
+                             ts, f, al, rot, jus, lh, scol, swi)
     end
 
     # For codeblocks we don't want automatic line wrapping. Instead we adjust
@@ -98,16 +103,7 @@ function estimate_width(glyphcollection)
 end
 
 
-"""
-    layout_code(
-        string::AbstractString, textsize::Union{AbstractVector, Number},
-        font, align, rotation, justification, lineheight
-    )
-
-Compute a GlyphCollection for a `string` given textsize, font, align, rotation, model, 
-justification, and lineheight.
-"""
-function layout_code(
+function layout_code_pygments(
         code, pygstyler, pyglexer, textsize::Union{AbstractVector, Number},
         font, align, rotation, justification, lineheight, strokecolor, strokewidth
     )
@@ -189,4 +185,59 @@ function font_from_pygstyle(pygstyle, basefont::Makie.FreeTypeAbstraction.FTFont
     guess_font_name *= pygstyle["bold"] ? " bold" : ""
     guess_font_name *= pygstyle["italic"] ? " italic" : ""
     to_font(guess_font_name)
+end
+
+
+css2color(str) = parse(RGBA{Float32}, string("#", str))
+css2color(c::Themes.RGB) = RGBA{Float32}(c.r / 255, c.g / 255, c.b / 255, 1.0)
+style2color(style, default) = style.fg.active ? css2color(style.fg) : default
+
+
+function layout_code_highlights(
+        code, theme, lexer, textsize::Union{AbstractVector, Number},
+        font, align, rotation, justification, lineheight, strokecolor, strokewidth
+    )
+
+    rscale = to_textsize(textsize)
+    rot    = to_rotation(rotation)
+    defaultcolor = if theme.base.fg.active
+        css2color(theme.base.fg)
+    else
+        RGBA(0.0f0, 0.0f0, 0.0f0, 1.0f0)
+    end
+    ctx = Highlights.Compiler.lex(code, lexer)
+    colormap = map(s -> style2color(s, defaultcolor), theme.styles)
+    tocolor = Dict(zip(Tokens.__TOKENS__, colormap))
+
+    fontperchar     = Any[]
+    textsizeperchar = Any[]
+    colorperchar    = Any[]
+
+    # tokens = pyglexer.get_tokens(code)
+    # for token in ctx.tokens
+    #     t              = Tokens.__TOKENS__[token.value.value]
+    #     token_string   = SubString(ctx.source, token.first, token.last)
+    #     color          = fill(tocolor[t], length(token_string))
+
+
+    for (token_string, id, style) in Format.TokenIterator(ctx, theme)
+
+        color = fill(RGBA(style.fg.r, style.fg.g, style.fg.b, 1.0f0), length(token_string))
+
+        token_fontperchar  = attribute_per_char(token_string, font)
+        token_sizeperchar  = attribute_per_char(token_string, rscale)
+        token_colorperchar = attribute_per_char(token_string, color)
+
+        append!(fontperchar, token_fontperchar)
+        append!(textsizeperchar, token_sizeperchar)
+        append!(colorperchar, token_colorperchar)
+    end
+
+    word_wrap_width = -1 # deactivate line wrapping
+    glyphcollection = glyph_collection(
+        code, fontperchar, textsizeperchar, align[1], align[2],
+        lineheight, justification, rot, colorperchar, strokecolor, strokewidth, word_wrap_width
+    )
+
+    return glyphcollection
 end

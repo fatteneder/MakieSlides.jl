@@ -5,6 +5,10 @@ using CairoMakie
 using Colors
 using FileIO
 using GLMakie
+using Highlights
+using Highlights.Format
+using Highlights.Tokens
+using Highlights.Themes
 using JSON
 using LaTeXStrings
 using Makie
