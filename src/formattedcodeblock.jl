@@ -74,7 +74,7 @@ function initialize_block!(l::FormattedCodeblock)
     all_styles = Symbol.(collect(pygments_styles.get_all_styles()))
     pygstyler = lift(l.codestyle) do style
         if !(style in all_styles)
-            @warn "Could not find style '$style', using friendly."
+            @warn "Could not find style '$style', using style friendly."
             style = :friendly
             l.codestyle[] = style
         end
@@ -84,7 +84,7 @@ function initialize_block!(l::FormattedCodeblock)
     all_lexers = lowercase.(first.(collect(pygments_lexers.get_all_lexers())))
     pyglexer = lift(l.language) do lang
         if !(string(lang) in all_lexers)
-            @warn "Language '$lang' not supported, using julia."
+            @warn "Language '$lang' not supported, using language julia."
             lang = :julia
             l.language[] = lang
         end
