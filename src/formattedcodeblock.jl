@@ -95,12 +95,8 @@ function initialize_block!(l::FormattedCodeblock)
         parse(RGBAf, styler.background_color)
     end
 
-    code = lift(l.code) do code
-        code.code
-    end
-
     fmtcode = formattedcode!(
-        blockscene, code, position = textpos, textsize = l.textsize,
+        blockscene, l.code, position = textpos, textsize = l.textsize,
         font = l.font, visible = l.visible, align = (:left, :top), 
         rotation = l.rotation, markerspace = :data, justification = :left,
         lineheight = l.lineheight, inspectable = false,
@@ -127,12 +123,11 @@ function initialize_block!(l::FormattedCodeblock)
 
         tw = w - padding[1] - padding[2]
         if tw != maxwidth[]
-            # notify(fmtcode.code)
             maxwidth[] = tw
         end
     end
 
-    # # background box
+    # background box
     strokecolor_with_visibility = lift(l.strokecolor, l.strokevisible) do col, vis
         vis ? col : RGBAf(0, 0, 0, 0)
     end
