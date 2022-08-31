@@ -256,9 +256,9 @@ function save(name, p::Presentation, idx::Int)
 end
   
 
-const pygments = PyCall.PyNULL()
-const pygments_lexers = PyCall.PyNULL()
-const pygments_styles = PyCall.PyNULL()
+const PYGMENTS = PyCall.PyNULL()
+const PYGMENTS_LEXERS = PyCall.PyNULL()
+const PYGMENTS_STYLES = PyCall.PyNULL()
 const PYGMENTS_LEXERS_LANG_LIST = Symbol[]
 const RGX_EMOJI = r":([^\s]+):"
 const EMOJIS_MAP = Dict{String,String}()
@@ -316,10 +316,10 @@ function __init__()
     if !conda_exists("pygments-julia")
         PyCall.Conda.pip("install", "git+https://github.com/sisl/pygments-julia#egg=pygments_julia")
     end
-    copy!(pygments, PyCall.pyimport_conda("pygments", "pygments"))
-    copy!(pygments_lexers, PyCall.pyimport_conda("pygments.lexers", "pygments"))
-    copy!(pygments_styles, PyCall.pyimport_conda("pygments.styles", "pygments"))
-    all_lexer_langs = [ [lex[2]...] for lex in pygments_lexers.get_all_lexers() ]
+    copy!(PYGMENTS, PyCall.pyimport_conda("pygments", "pygments"))
+    copy!(PYGMENTS_LEXERS, PyCall.pyimport_conda("pygments.lexers", "pygments"))
+    copy!(PYGMENTS_STYLES, PyCall.pyimport_conda("pygments.styles", "pygments"))
+    all_lexer_langs = [ [lex[2]...] for lex in PYGMENTS_LEXERS.get_all_lexers() ]
     copy!(PYGMENTS_LEXERS_LANG_LIST, Symbol.(vcat(all_lexer_langs...)))
 
     # setup emoji list

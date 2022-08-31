@@ -19,8 +19,8 @@ Plots syntax highlighted code.
         markerspace = :pixel,
         offset = (0.0, 0.0),
         inspectable = theme(scene, :inspectable),
-        pygstyler = pygments_styles.get_style_by_name("friendly"),
-        pyglexer = pygments_lexers.get_lexer_by_name("julia"),
+        pygstyler = PYGMENTS_STYLES.get_style_by_name("friendly"),
+        pyglexer = PYGMENTS_LEXERS.get_lexer_by_name("julia"),
         maxwidth = 0.0
     )
 end
@@ -32,7 +32,7 @@ function Makie.plot!(plot::FormattedCode{<:Tuple{<:Markdown.Code}})
         @warn "Language '$lang' not supported, using language julia."
         lang = :julia
     end
-    pyglexer = pygments_lexers.get_lexer_by_name(lang)
+    pyglexer = PYGMENTS_LEXERS.get_lexer_by_name(lang)
     attrs = plot.attributes
     attrs[:pyglexer] = pyglexer
     formattedcode!(plot, code; attrs...)

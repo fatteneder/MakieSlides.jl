@@ -73,14 +73,14 @@ function initialize_block!(l::FormattedCodeblock)
     textbb = Ref(BBox(0, 1, 0, 1))
     maxwidth = Observable(0.0)
 
-    all_styles = Symbol.(collect(pygments_styles.get_all_styles()))
+    all_styles = Symbol.(collect(PYGMENTS_STYLES.get_all_styles()))
     pygstyler = lift(l.codestyle) do style
         if !(style in all_styles)
             @warn "Could not find style '$style', using style friendly."
             style = :friendly
             l.codestyle[] = style
         end
-        pygstyler = pygments_styles.get_style_by_name(string(style))
+        pygstyler = PYGMENTS_STYLES.get_style_by_name(string(style))
     end
 
     pyglexer = lift(l.language) do lang
@@ -89,7 +89,7 @@ function initialize_block!(l::FormattedCodeblock)
             lang = :julia
             l.language.val = lang
         end
-        pyglexer = pygments_lexers.get_lexer_by_name(string(lang))
+        pyglexer = PYGMENTS_LEXERS.get_lexer_by_name(string(lang))
     end
 
     backgroundcolor = lift(pygstyler, l.backgroundcolor) do styler, bg
