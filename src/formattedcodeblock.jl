@@ -39,6 +39,8 @@
         alignmode = Inside()
         "Controls if the background is visible."
         backgroundvisible::Bool = true
+        "The color of the background. Set to `nothing` to use background color from syntax highlighter."
+        backgroundcolor::Union{RGBAf,Nothing} = nothing
         "The line width of the rectangle's border."
         strokewidth::Float32 = 1f0
         "Controls if the border of the rectangle is visible."
@@ -91,7 +93,8 @@ function initialize_block!(l::FormattedCodeblock)
         pyglexer = pygments_lexers.get_lexer_by_name(string(lang))
     end
 
-    backgroundcolor = lift(pygstyler) do styler
+    backgroundcolor = lift(pygstyler, l.backgroundcolor) do styler, bg
+        !isnothing(bg) && return bg
         parse(RGBAf, styler.background_color)
     end
 
