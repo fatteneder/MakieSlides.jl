@@ -28,9 +28,7 @@ end
 
 function Makie.plot!(plot::FormattedCode{<:Tuple{<:Markdown.Code}})
     code, lang = plot.code[].code, plot.code[].language
-    all_lexer_langs = [ [lex[2]...] for lex in pygments_lexers.get_all_lexers() ]
-    all_lexer_langs = vcat(all_lexer_langs...)
-    if lang ∉ all_lexer_langs
+    if Symbol(lang) ∉ PYGMENTS_LEXERS_SHORT_LIST
         @warn "Language '$lang' not supported, using language julia."
         lang = :julia
     end
