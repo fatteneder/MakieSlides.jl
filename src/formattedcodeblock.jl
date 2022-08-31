@@ -73,9 +73,8 @@ function initialize_block!(l::FormattedCodeblock)
     textbb = Ref(BBox(0, 1, 0, 1))
     maxwidth = Observable(0.0)
 
-    all_styles = Symbol.(collect(PYGMENTS_STYLES.get_all_styles()))
     pygstyler = lift(l.codestyle) do style
-        if !(style in all_styles)
+        if style ∉ PYGMENTS_STYLES_LIST
             @warn "Could not find style '$style', using style friendly."
             style = :friendly
             l.codestyle[] = style

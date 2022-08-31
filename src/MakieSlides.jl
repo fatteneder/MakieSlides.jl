@@ -260,6 +260,7 @@ const PYGMENTS = PyCall.PyNULL()
 const PYGMENTS_LEXERS = PyCall.PyNULL()
 const PYGMENTS_STYLES = PyCall.PyNULL()
 const PYGMENTS_LEXERS_LANG_LIST = Symbol[]
+const PYGMENTS_STYLES_LIST = Symbol[]
 const RGX_EMOJI = r":([^\s]+):"
 const EMOJIS_MAP = Dict{String,String}()
 const EMOJIS_PNG_PATH = normpath(joinpath(@__DIR__, "..", "assets", "openmoji_png"))
@@ -321,6 +322,8 @@ function __init__()
     copy!(PYGMENTS_STYLES, PyCall.pyimport_conda("pygments.styles", "pygments"))
     all_lexer_langs = [ [lex[2]...] for lex in PYGMENTS_LEXERS.get_all_lexers() ]
     copy!(PYGMENTS_LEXERS_LANG_LIST, Symbol.(vcat(all_lexer_langs...)))
+    all_styles = collect(PYGMENTS_STYLES.get_all_styles())
+    copy!(PYGMENTS_STYLES_LIST, Symbol.(all_styles))
 
     # setup emoji list
     emojis_map = JSON.parsefile(joinpath(@__DIR__, "..", "assets", "emojis.json"))
