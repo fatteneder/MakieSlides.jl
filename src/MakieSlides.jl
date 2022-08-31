@@ -298,8 +298,20 @@ function load_emoji_image(shorthand)
 end
 
 
+# workaround for Conda.exists which is currenlty broken, see
+# https://github.com/JuliaPy/Conda.jl/pull/167
+function conda_exists(pkgname)
+    pkgs = PyCall.Conda._installed_packages()
+    pkgname ∈ pkgs
+end
+
+
 function __init__()
     GLMakie.activate!() # Just to make sure
+    # add a custom Julia lexer for Pygments
+    if !conda_exists("pygments-julia")
+        PyCall.Conda.pip("install", "git+https://github.com/sisl/pygments-julia#egg=pygments_julia")
+    end
     copy!(pygments, PyCall.pyimport_conda("pygments", "pygments"))
     copy!(pygments_lexers, PyCall.pyimport_conda("pygments.lexers", "pygments"))
     copy!(pygments_styles, PyCall.pyimport_conda("pygments.styles", "pygments"))
