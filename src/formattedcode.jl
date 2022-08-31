@@ -44,21 +44,10 @@ function Makie.plot!(plot::FormattedCode{<:Tuple{<:AbstractString}})
 
     default_textsize = plot.textsize[]
 
-    # For codeblocks we don't want automatic line wrapping. Instead we adjust
-    # the font size such that the boundingbox's width is smaller than plot.maxwidth.
-    # We iteratively shrink it starting from plot.textsize.
-    settled_on_textsize = false
-
     glyphcollection = lift(plot.code, plot.pygstyler, plot.pyglexer,
             plot.textsize, plot.font, plot.align,
             plot.rotation, plot.justification, plot.lineheight, plot.strokecolor,
             plot.strokewidth) do code, styler, lexer, ts, f, al, rot, jus, lh, scol, swi
-
-        if settled_on_textsize
-            # any update requires us to restart the textsize iteration
-            settled_on_textsize = false
-            plot.textsize[] = default_textsize
-        end
 
         ts = to_textsize(ts)
         f = to_font(f)
@@ -68,20 +57,22 @@ function Makie.plot!(plot::FormattedCode{<:Tuple{<:AbstractString}})
         layout_code(code, styler, lexer, ts, f, al, rot, jus, lh, scol, swi)
     end
 
+    # For codeblocks we don't want automatic line wrapping. Instead we adjust
+    # the font size such that the boundingbox's width is smaller than plot.maxwidth.
+    prev_maxwidth = 0.0
     onany(glyphcollection, plot.maxwidth) do glc, maxwidth
-        if maxwidth > 0.0
-            w = estimate_width(glyphcollection[])
-            if w > maxwidth
-                ts = plot.textsize[] - 1
-                ts <= 0 && @warn "FormattedCode: Cannot shrink font size any further."
-                plot.textsize[] = ts
-            else
-                settled_on_textsize = true
-            end
+
+        (maxwidth <= 0.0 || prev_maxwidth == maxwidth) && return
+
+        w = estimate_width(glc)
+        grad_maxwidth = maxwidth - prev_maxwidth
+        prev_maxwidth = maxwidth
+        if grad_maxwidth < 0 && w > maxwidth && plot.textsize[] - 1 > 0
+            plot.textsize[] -= 1
+        elseif grad_maxwidth > 0 && w < maxwidth && plot.textsize[] + 1 <= default_textsize
+            plot.textsize[] += 1
         end
     end
-
-    notify(plot.maxwidth)
 
     text_attributes = copy(plot.attributes)
     delete!(text_attributes, :pygstyler)
@@ -97,7 +88,7 @@ function estimate_width(glyphcollection)
     glyphs, glyphbbs = glyphcollection.glyphs, gl_bboxes(glyphcollection)
     for (g, bb) in zip(glyphs, glyphbbs)
         w += width(bb)
-        if g == '\n'
+        if g === '\n'
             max_w = max(max_w, w)
             w = 0.0
         end
@@ -109,12 +100,11 @@ end
 
 """
     layout_code(
-        string::AbstractString, textsize::Union{AbstractVector, Number},
-        font, align, rotation, justification, lineheight
+        code, pygstyler, pyglexer, textsize::Union{AbstractVector, Number},
+        font, align, rotation, justification, lineheight, strokecolor, strokewidth
     )
 
-Compute a GlyphCollection for a `string` given textsize, font, align, rotation, model, 
-justification, and lineheight.
+Compute a GlyphCollection for a `code` block with syntax highlighting.
 """
 function layout_code(
         code, pygstyler, pyglexer, textsize::Union{AbstractVector, Number},

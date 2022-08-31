@@ -69,11 +69,12 @@ function initialize_block!(l::FormattedCodeblock)
 
     textpos = Observable(Point3f(0, 0, 0))
     textbb = Ref(BBox(0, 1, 0, 1))
+    maxwidth = Observable(0.0)
 
     all_styles = Symbol.(collect(pygments_styles.get_all_styles()))
     pygstyler = lift(l.codestyle) do style
         if !(style in all_styles)
-            @warn "Could not find style '$style', using friendly."
+            @warn "Could not find style '$style', using style friendly."
             style = :friendly
             l.codestyle[] = style
         end
@@ -83,7 +84,7 @@ function initialize_block!(l::FormattedCodeblock)
     all_lexers = lowercase.(first.(collect(pygments_lexers.get_all_lexers())))
     pyglexer = lift(l.language) do lang
         if !(string(lang) in all_lexers)
-            @warn "Language '$lang' not supported, using julia."
+            @warn "Language '$lang' not supported, using language julia."
             lang = :julia
             l.language[] = lang
         end
@@ -94,42 +95,39 @@ function initialize_block!(l::FormattedCodeblock)
         parse(RGBAf, styler.background_color)
     end
 
-    code = lift(l.code) do code
-        code.code
-    end
-
     fmtcode = formattedcode!(
-        blockscene, code, position = textpos, textsize = l.textsize,
+        blockscene, l.code, position = textpos, textsize = l.textsize,
         font = l.font, visible = l.visible, align = (:left, :top), 
         rotation = l.rotation, markerspace = :data, justification = :left,
         lineheight = l.lineheight, inspectable = false,
-        pygstyler = pygstyler, pyglexer = pyglexer
+        pygstyler = pygstyler, pyglexer = pyglexer, maxwidth=maxwidth
     )
 
+    # fit bounding box to text
+    onany(l.code, maxwidth, l.padding) do _, _, padding
+        textbb[] = Rect2f(boundingbox(fmtcode))
+        autoheight = height(textbb[]) + padding[3] + padding[4]
+        layoutobservables.autosize[] = (nothing, autoheight)
+    end
+
+    # adjust textbox width to new layout
     onany(layoutobservables.computedbbox, l.padding, l.halign, l.valign) do bbox, 
             padding, halign, valign
 
-        textbb = Rect2f(boundingbox(fmtcode))
-        tw, th = width(textbb), height(textbb)
-        w = width(bbox)
-        h = height(bbox)
+        w, h = width(bbox), height(bbox)
         box, boy = bbox.origin
 
-        # position text
         tx = box + padding[1]
         ty = boy + h - padding[3]
         textpos[] = Point3f(tx, ty, 0)
 
-        notify(fmtcode.code)
-        fmtcode.maxwidth[] = w - padding[1] - padding[2]
-
-        autoheight = th + padding[3] + padding[4]
-        if !isapprox(h, autoheight)
-            layoutobservables.reportedsize[] = (nothing, autoheight)
+        tw = w - padding[1] - padding[2]
+        if tw != maxwidth[]
+            maxwidth[] = tw
         end
     end
 
-    # # background box
+    # background box
     strokecolor_with_visibility = lift(l.strokecolor, l.strokevisible) do col, vis
         vis ? col : RGBAf(0, 0, 0, 0)
     end
