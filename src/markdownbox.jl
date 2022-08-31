@@ -130,6 +130,7 @@ function render_element(md::Markdown.Code, scene, l::MarkdownBox)
                    width = l.width, height = l.height,
                    alignmode = l.alignmode,
                    backgroundvisible = true,
+                   backgroundcolor = l.backgroundcolor,
                    codestyle = l.codestyle,
                    language = l.language)
 end
