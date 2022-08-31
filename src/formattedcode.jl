@@ -28,7 +28,7 @@ end
 
 function Makie.plot!(plot::FormattedCode{<:Tuple{<:Markdown.Code}})
     code, lang = plot.code[].code, plot.code[].language
-    if Symbol(lang) ∉ PYGMENTS_LEXERS_SHORT_LIST
+    if Symbol(lang) ∉ PYGMENTS_LEXERS_LANG_LIST
         @warn "Language '$lang' not supported, using language julia."
         lang = :julia
     end

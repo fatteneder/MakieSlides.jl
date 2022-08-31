@@ -84,7 +84,7 @@ function initialize_block!(l::FormattedCodeblock)
     end
 
     pyglexer = lift(l.language) do lang
-        if lang ∉ PYGMENTS_LEXERS_SHORT_LIST
+        if lang ∉ PYGMENTS_LEXERS_LANG_LIST
             @warn "Language '$lang' not supported, using language julia."
             lang = :julia
             l.language.val = lang

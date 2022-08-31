@@ -259,6 +259,7 @@ end
 const pygments = PyCall.PyNULL()
 const pygments_lexers = PyCall.PyNULL()
 const pygments_styles = PyCall.PyNULL()
+const PYGMENTS_LEXERS_LANG_LIST = Symbol[]
 const RGX_EMOJI = r":([^\s]+):"
 const EMOJIS_MAP = Dict{String,String}()
 const EMOJIS_PNG_PATH = normpath(joinpath(@__DIR__, "..", "assets", "openmoji_png"))
@@ -307,7 +308,10 @@ end
 
 
 function __init__()
+
     GLMakie.activate!() # Just to make sure
+
+    # setup python
     # add a custom Julia lexer for Pygments
     if !conda_exists("pygments-julia")
         PyCall.Conda.pip("install", "git+https://github.com/sisl/pygments-julia#egg=pygments_julia")
@@ -315,6 +319,10 @@ function __init__()
     copy!(pygments, PyCall.pyimport_conda("pygments", "pygments"))
     copy!(pygments_lexers, PyCall.pyimport_conda("pygments.lexers", "pygments"))
     copy!(pygments_styles, PyCall.pyimport_conda("pygments.styles", "pygments"))
+    all_lexer_langs = [ [lex[2]...] for lex in pygments_lexers.get_all_lexers() ]
+    copy!(PYGMENTS_LEXERS_LANG_LIST, Symbol.(vcat(all_lexer_langs...)))
+
+    # setup emoji list
     emojis_map = JSON.parsefile(joinpath(@__DIR__, "..", "assets", "emojis.json"))
     # replace all _ in shorthands with -, because _ is parsed as emphasis in Markdown
     md_emojis_map = Dict( [ replace(sh, "_" => "-") => e for (sh, e) in pairs(emojis_map) ] )
