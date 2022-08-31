@@ -64,7 +64,7 @@ function Makie.plot!(plot::FormattedCode{<:Tuple{<:AbstractString}})
 
         (maxwidth <= 0.0 || prev_maxwidth == maxwidth) && return
 
-        w = estimate_width(glyphcollection[])
+        w = estimate_width(glc)
         grad_maxwidth = maxwidth - prev_maxwidth
         prev_maxwidth = maxwidth
         if grad_maxwidth < 0 && w > maxwidth && plot.textsize[] - 1 > 0
@@ -88,7 +88,7 @@ function estimate_width(glyphcollection)
     glyphs, glyphbbs = glyphcollection.glyphs, gl_bboxes(glyphcollection)
     for (g, bb) in zip(glyphs, glyphbbs)
         w += width(bb)
-        if g == '\n'
+        if g === '\n'
             max_w = max(max_w, w)
             w = 0.0
         end
@@ -100,12 +100,11 @@ end
 
 """
     layout_code(
-        string::AbstractString, textsize::Union{AbstractVector, Number},
-        font, align, rotation, justification, lineheight
+        code, pygstyler, pyglexer, textsize::Union{AbstractVector, Number},
+        font, align, rotation, justification, lineheight, strokecolor, strokewidth
     )
 
-Compute a GlyphCollection for a `string` given textsize, font, align, rotation, model, 
-justification, and lineheight.
+Compute a GlyphCollection for a `code` block with syntax highlighting.
 """
 function layout_code(
         code, pygstyler, pyglexer, textsize::Union{AbstractVector, Number},
