@@ -24,8 +24,11 @@ import Makie.MakieLayout: @Block, inherit, round_to_IRect2D, initialize_block!
 
 
 # Resolve method ambiguity. Remove ASAP with next Makie update.
-Makie.MakieLayout.convert_for_attribute(t::Type{Makie.FreeTypeAbstraction.FTFont},
+# See also https://github.com/JuliaPlots/Makie.jl/issues/2247
+Makie.convert_for_attribute(t::Type{Makie.FreeTypeAbstraction.FTFont},
                             x::Makie.FreeTypeAbstraction.FTFont) = to_font(x)
+Makie.convert_for_attribute(t::Type{Union{RGBAf,Nothing}}, x) =
+    isnothing(x) ? nothing : Makie.convert_for_attribute(RGBAf, x)
 
 
 export Presentation, add_slide!, reset!, save

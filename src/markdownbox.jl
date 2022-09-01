@@ -60,13 +60,6 @@
 end
 
 
-# Override type conversion for @Block attributes,
-# see https://github.com/JuliaPlots/Makie.jl/issues/2247
-function Makie.convert_for_attribute(t::Type{Union{RGBAf,Nothing}}, x)
-    return isnothing(x) ? nothing : Makie.convert_for_attribute(RGBAf, x)
-end
-
-
 MarkdownBox(x, md::AbstractString; kwargs...) = MarkdownBox(x, md = Markdown.parse(text); kwargs...)
 MarkdownBox(x, md::Markdown.MD; kwargs...) = MarkdownBox(x, md = md; kwargs...)
 
