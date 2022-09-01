@@ -46,10 +46,10 @@
         backgroundvisible::Bool = false
         "The color of the background. "
         backgroundcolor::RGBAf = RGBf(0.9, 0.9, 0.9)
+        "The color of the background of a code snippet. Set to `nothing` to use background color from syntax highlighter."
+        code_backgroundcolor::Union{RGBAf,Nothing} = nothing
         "The syntax highlighting theme."
         codestyle::Symbol = :material
-        "The code language."
-        language::Symbol = :julia
         "The @printf pattern to format enumeration items"
         enumeration_pattern = "%i)"
         "The symbol for itemization items"
@@ -57,6 +57,13 @@
         "The horizontal divider's lineheight multiplier for the text."
         divider_color::RGBAf = :lightgray
     end
+end
+
+
+# Override type conversion for @Block attributes,
+# see https://github.com/JuliaPlots/Makie.jl/issues/2247
+function Makie.convert_for_attribute(t::Type{Union{RGBAf,Nothing}}, x)
+    return isnothing(x) ? nothing : Makie.convert_for_attribute(RGBAf, x)
 end
 
 
@@ -130,9 +137,9 @@ function render_element(md::Markdown.Code, scene, l::MarkdownBox)
                    width = l.width, height = l.height,
                    alignmode = l.alignmode,
                    backgroundvisible = true,
-                   backgroundcolor = l.backgroundcolor,
+                   backgroundcolor = l.code_backgroundcolor,
                    codestyle = l.codestyle,
-                   language = l.language)
+                   language = Symbol(md.language))
 end
 
 
