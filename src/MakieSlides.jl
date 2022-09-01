@@ -23,12 +23,22 @@ using Makie.MakieLayout
 import Makie.MakieLayout: @Block, inherit, round_to_IRect2D, initialize_block!
 
 
-# Resolve method ambiguity. Remove ASAP with next Makie update.
+# Use a wrapper type to avoid type piracy for conversion pipeline of
+# @Block attriubtes.
 # See also https://github.com/JuliaPlots/Makie.jl/issues/2247
+struct Maybe{T}
+    value::Union{T,Nothing}
+end
+Base.convert(::Type{Maybe{T}}, x) where T = Maybe{T}(x)
+Base.convert(::Type{Maybe{T}}, x::Maybe{T}) where T = x
+Makie.convert_for_attribute(t::Type{Maybe{RGBAf}}, x) =
+    isnothing(x) ? nothing : Maybe{RGBAf}(to_color(x))
+
+
+# Resolve method ambiguity. Remove ASAP with next Makie update.
+# This is type piracy!
 Makie.convert_for_attribute(t::Type{Makie.FreeTypeAbstraction.FTFont},
                             x::Makie.FreeTypeAbstraction.FTFont) = to_font(x)
-Makie.convert_for_attribute(t::Type{Union{RGBAf,Nothing}}, x) =
-    isnothing(x) ? nothing : Makie.convert_for_attribute(RGBAf, x)
 
 
 export Presentation, add_slide!, reset!, save
