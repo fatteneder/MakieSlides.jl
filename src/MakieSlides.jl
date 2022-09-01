@@ -173,10 +173,10 @@ function _set_slide_idx!(p::Presentation, i)
     if !p.locked && i != p.idx && (1 <= i <= length(p.slides))
         p.locked = true
         p.idx = i
-        for fig in p.figures
+        for (name, fig) in p.figures
             p.clear[p.idx] && empty!(fig)
+            name === :body && p.slides[p.idx](fig)
         end
-        p.slides[p.idx](f)
         p.locked = false
     end
     return
@@ -225,11 +225,11 @@ function add_slide!(f::Function, p::Presentation, clear = true)
     # This is set up to render each slide immediately to get compilation times 
     # out of the way and perhaps catch errors a bit earlier
     try
-        for fig in p.figures
+        for (name, fig) in p.figures
             clear && empty!(fig)
             # with_updates_suspended should stop layouting to trigger when the slide
             # gets set up. This should speed up slide creation a bit.
-            with_updates_suspended(() -> f(fig), fig.layout)
+            name === :body && with_updates_suspended(() -> f(fig), fig.layout)
         end
         push!(p.slides, f)
         push!(p.clear, p.idx == 1 || clear) # always clear first slide
