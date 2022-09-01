@@ -24,8 +24,11 @@ import Makie.MakieLayout: @Block, inherit, round_to_IRect2D, initialize_block!
 
 
 # Resolve method ambiguity. Remove ASAP with next Makie update.
-Makie.MakieLayout.convert_for_attribute(t::Type{Makie.FreeTypeAbstraction.FTFont},
+# See also https://github.com/JuliaPlots/Makie.jl/issues/2247
+Makie.convert_for_attribute(t::Type{Makie.FreeTypeAbstraction.FTFont},
                             x::Makie.FreeTypeAbstraction.FTFont) = to_font(x)
+Makie.convert_for_attribute(t::Type{Union{RGBAf,Nothing}}, x) =
+    isnothing(x) ? nothing : Makie.convert_for_attribute(RGBAf, x)
 
 
 export Presentation, add_slide!, reset!, save
@@ -256,9 +259,11 @@ function save(name, p::Presentation, idx::Int)
 end
   
 
-const pygments = PyCall.PyNULL()
-const pygments_lexers = PyCall.PyNULL()
-const pygments_styles = PyCall.PyNULL()
+const PYGMENTS = PyCall.PyNULL()
+const PYGMENTS_LEXERS = PyCall.PyNULL()
+const PYGMENTS_STYLES = PyCall.PyNULL()
+const PYGMENTS_LEXERS_LANG_LIST = Symbol[]
+const PYGMENTS_STYLES_LIST = Symbol[]
 const RGX_EMOJI = r":([^\s]+):"
 const EMOJIS_MAP = Dict{String,String}()
 const EMOJIS_PNG_PATH = normpath(joinpath(@__DIR__, "..", "assets", "openmoji_png"))
@@ -298,11 +303,32 @@ function load_emoji_image(shorthand)
 end
 
 
+# workaround for Conda.exists which is currenlty broken, see
+# https://github.com/JuliaPy/Conda.jl/pull/167
+function conda_exists(pkgname)
+    pkgs = PyCall.Conda._installed_packages()
+    pkgname ∈ pkgs
+end
+
+
 function __init__()
+
     GLMakie.activate!() # Just to make sure
-    copy!(pygments, PyCall.pyimport_conda("pygments", "pygments"))
-    copy!(pygments_lexers, PyCall.pyimport_conda("pygments.lexers", "pygments"))
-    copy!(pygments_styles, PyCall.pyimport_conda("pygments.styles", "pygments"))
+
+    # setup python
+    # add a custom Julia lexer for Pygments
+    if !conda_exists("pygments-julia")
+        PyCall.Conda.pip("install", "git+https://github.com/sisl/pygments-julia#egg=pygments_julia")
+    end
+    copy!(PYGMENTS, PyCall.pyimport_conda("pygments", "pygments"))
+    copy!(PYGMENTS_LEXERS, PyCall.pyimport_conda("pygments.lexers", "pygments"))
+    copy!(PYGMENTS_STYLES, PyCall.pyimport_conda("pygments.styles", "pygments"))
+    all_lexer_langs = [ [lex[2]...] for lex in PYGMENTS_LEXERS.get_all_lexers() ]
+    copy!(PYGMENTS_LEXERS_LANG_LIST, Symbol.(vcat(all_lexer_langs...)))
+    all_styles = collect(PYGMENTS_STYLES.get_all_styles())
+    copy!(PYGMENTS_STYLES_LIST, Symbol.(all_styles))
+
+    # setup emoji list
     emojis_map = JSON.parsefile(joinpath(@__DIR__, "..", "assets", "emojis.json"))
     # replace all _ in shorthands with -, because _ is parsed as emphasis in Markdown
     md_emojis_map = Dict( [ replace(sh, "_" => "-") => e for (sh, e) in pairs(emojis_map) ] )
