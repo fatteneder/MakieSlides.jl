@@ -123,28 +123,31 @@ function Presentation(; kwargs...)
     padding = padding isa Observable ? padding : Observable{Any}(padding)
     alignmode = lift(Outside ∘ Makie.to_rectsides, padding)
 
-    layout_header      = parent[1,1:3]  = Makie.GridLayout(height=Fixed(50),
-                                                           tellwidth=false, valign=:top)
-    layout_sidebar_lhs = parent[2,1]    = Makie.GridLayout(width=Fixed(50),
-                                                           tellheight=false, halign=:left)
-    layout_body        = parent[2,2]    = Makie.GridLayout(tellheight=false, tellwidth=false)
-    layout_sidebar_rhs = parent[2,3]    = Makie.GridLayout(width=Fixed(50),
-                                                           tellheight=false, halign=:right)
-    layout_footer      = parent[3,1:3]  = Makie.GridLayout(height=Fixed(50),
-                                                           tellwidth=false, valign=:bottom)
+    layouts = Dict{Symbol, Makie.GridLayout}()
+    layouts[:header]      = Makie.GridLayout(parent[1,1:3], height=Fixed(50),
+                                             tellwidth=false, valign=:top)
+    layouts[:sidebar_lhs] = Makie.GridLayout(parent[2,1], width=Fixed(50),
+                                             tellheight=false, halign=:left)
+    layouts[:body]        = Makie.GridLayout(parent[2,2], tellheight=false, tellwidth=false)
+    layouts[:sidebar_rhs] = Makie.GridLayout(parent[2,3], width=Fixed(50),
+                                             tellheight=false, halign=:right)
+    layouts[:footer]      = Makie.GridLayout(parent[3,1:3], height=Fixed(50),
+                                             tellwidth=false, valign=:bottom)
 
-    layouts = [ layout_header, layout_sidebar_lhs, layout_body,
-                layout_sidebar_rhs, layout_footer ]
-
-    for layout in layouts
-        layout.alignmode[] = Outside()
-        Makie.GridLayoutBase.update!(layout)
+    alignmode = lift(Outside ∘ Makie.to_rectsides, padding)
+    on(alignmode) do al
+        for layout in values(layouts)
+            layout.alignmode[] = al
+            Makie.GridLayoutBase.update!(layout)
+        end
     end
+    notify(alignmode)
 
-    header, sidebar_lhs, body, sidebar_rhs, footer =
-        [ Figure(scene, layout, [], Attributes(), Ref{Any}(nothing)) for layout in layouts ]
-
-    figures = Dict(pairs((; header, sidebar_lhs, body, sidebar_rhs, footer)))
+    figures = Dict( name => Figure(scene, layout, [], Attributes(), Ref{Any}(nothing))
+                    for (name, layout) in layouts )
+    for (fig, layout) in zip(values(figures), values(layouts))
+        layout.parent = fig
+    end
 
     p = Presentation(parent, figures, 1, Function[], Bool[], false)
 
@@ -174,6 +177,7 @@ function _set_slide_idx!(p::Presentation, i)
         p.locked = true
         p.idx = i
         for (name, fig) in p.figures
+            name === :body || continue
             p.clear[p.idx] && empty!(fig)
             name === :body && p.slides[p.idx](fig)
         end
@@ -226,6 +230,7 @@ function add_slide!(f::Function, p::Presentation, clear = true)
     # out of the way and perhaps catch errors a bit earlier
     try
         for (name, fig) in p.figures
+            name === :body || continue
             clear && empty!(fig)
             # with_updates_suspended should stop layouting to trigger when the slide
             # gets set up. This should speed up slide creation a bit.
