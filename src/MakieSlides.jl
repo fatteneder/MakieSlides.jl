@@ -45,7 +45,7 @@ include("markdownbox.jl")
 
 mutable struct Presentation
     parent::Figure
-    fig::Figure
+    figures::Dict{Symbol,Figure}
 
     idx::Int
     slides::Vector{Function}
@@ -54,12 +54,29 @@ mutable struct Presentation
 end
 
 
+function Base.getproperty(p::Presentation, s::Symbol)
+    fig_names = keys(getfield(p, :figures))
+    if s in fig_names
+        return getfield(p, :figures)[s]
+    else
+        return getfield(p, s)
+    end
+end
+
+
+function Base.propertynames(p::Presentation, private::Bool=false)
+    return [ fieldnames(Presentation)..., keys(p.figures)... ]
+end
+
+
+
 """
     Presentation(; kwargs...)
 
-Creates a `pres::Presentation` with two figures `pres.parent` and `pres.fig`. 
+Creates a `pres::Presentation` with a background figure `parent`
+and a set of content figures `figures`.
 The former remains static during the presentation and acts as the background and 
-window.  The latter acts as the slide and gets cleared and reassambled every 
+window. The latter act as thes slide and they get cleared and reassambled every
 time a new slide is requested. (This includes events.)
 
 To add a slide use:
@@ -106,24 +123,30 @@ function Presentation(; kwargs...)
     padding = padding isa Observable ? padding : Observable{Any}(padding)
     alignmode = lift(Outside ∘ Makie.to_rectsides, padding)
 
-    layout = Makie.GridLayout(scene)
+    layout_header      = parent[1,1:3]  = Makie.GridLayout(height=Fixed(50),
+                                                           tellwidth=false, valign=:top)
+    layout_sidebar_lhs = parent[2,1]    = Makie.GridLayout(width=Fixed(50),
+                                                           tellheight=false, halign=:left)
+    layout_body        = parent[2,2]    = Makie.GridLayout(tellheight=false, tellwidth=false)
+    layout_sidebar_rhs = parent[2,3]    = Makie.GridLayout(width=Fixed(50),
+                                                           tellheight=false, halign=:right)
+    layout_footer      = parent[3,1:3]  = Makie.GridLayout(height=Fixed(50),
+                                                           tellwidth=false, valign=:bottom)
 
-    on(alignmode) do al
-        layout.alignmode[] = al
+    layouts = [ layout_header, layout_sidebar_lhs, layout_body,
+                layout_sidebar_rhs, layout_footer ]
+
+    for layout in layouts
+        layout.alignmode[] = Outside()
         Makie.GridLayoutBase.update!(layout)
     end
-    notify(alignmode)
 
-    f = Figure(
-        scene,
-        layout,
-        [],
-        Attributes(),
-        Ref{Any}(nothing)
-    )
-    layout.parent = f
+    header, sidebar_lhs, body, sidebar_rhs, footer =
+        [ Figure(scene, layout, [], Attributes(), Ref{Any}(nothing)) for layout in layouts ]
 
-    p = Presentation(parent, f, 1, Function[], Bool[], false)
+    figures = Dict(pairs((; header, sidebar_lhs, body, sidebar_rhs, footer)))
+
+    p = Presentation(parent, figures, 1, Function[], Bool[], false)
 
     # Interactions
     on(events(parent.scene).keyboardbutton, priority = -1) do event
@@ -144,14 +167,16 @@ end
 
 function _set_slide_idx!(p::Presentation, i)
     # Moving through slides quickly seems to sometimes trigger plot insertion 
-    # before or during the `empty!(p.fig)` procedure. This causes emptying to
+    # before or during the `empty!(fig)` procedure. This causes emptying to
     # fail and leaves orphaned plots behind. To avoid this we have a lock here
     # which disables slide changes until the previous change is finished.
     if !p.locked && i != p.idx && (1 <= i <= length(p.slides))
         p.locked = true
         p.idx = i
-        p.clear[p.idx] && empty!(p.fig)
-        p.slides[p.idx](p.fig)
+        for fig in p.figures
+            p.clear[p.idx] && empty!(fig)
+        end
+        p.slides[p.idx](f)
         p.locked = false
     end
     return
@@ -159,7 +184,7 @@ end
 
 
 function set_slide_idx!(p::Presentation, i)
-    # If we jump randomly we need to start from the last cleared fig and build
+    # If we jump randomly we need to start from the last cleared slide and build
     # the current slide up from there.
     N = length(p.slides)
     i = i < 1 ? 1 : i
@@ -200,10 +225,12 @@ function add_slide!(f::Function, p::Presentation, clear = true)
     # This is set up to render each slide immediately to get compilation times 
     # out of the way and perhaps catch errors a bit earlier
     try
-        clear && empty!(p.fig)
-        # with_updates_suspended should stop layouting to trigger when the slide
-        # gets set up. This should speed up slide creation a bit.
-        with_updates_suspended(() -> f(p.fig), p.fig.layout)
+        for fig in p.figures
+            clear && empty!(fig)
+            # with_updates_suspended should stop layouting to trigger when the slide
+            # gets set up. This should speed up slide creation a bit.
+            with_updates_suspended(() -> f(fig), fig.layout)
+        end
         push!(p.slides, f)
         push!(p.clear, p.idx == 1 || clear) # always clear first slide
         p.idx = length(p.slides)
