@@ -41,7 +41,7 @@ Makie.convert_for_attribute(t::Type{Makie.FreeTypeAbstraction.FTFont},
                             x::Makie.FreeTypeAbstraction.FTFont) = to_font(x)
 
 
-export Presentation, new_slide!, add_slide!, reset!, save
+export Presentation, new_slide!, add_to_slide!, reset!, save
 export formattedtext, formattedtext!
 export FormattedLabel, FormattedList, FormattedTable, MarkdownBox, FormattedCodeblock
 
@@ -94,11 +94,11 @@ time a new slide is requested. (This includes events.)
 
 To add a slide use:
 
-    add_slide!(pres[, clear = true]) do fig
+    add_to_slide!(pres[, clear = true]) do fig
         # Plot your slide to fig
     end
 
-Note that `add_slide!` immediately switches to and draws the newly added slide. 
+Note that `add_to_slide!` immediately switches to and draws the newly added slide.
 This is done to get rid of compilation times beforehand.
 
 To switch to a different slide:
@@ -128,11 +128,6 @@ function Presentation(; kwargs...)
         end
     end
 
-    scene = Scene(
-        parent.scene; camera=campixel!, clear = false, 
-        events = separated_events, kwargs_dict...
-    )
-
     padding = padding isa Observable ? padding : Observable{Any}(padding)
     alignmode = lift(Outside ∘ Makie.to_rectsides, padding)
 
@@ -156,10 +151,15 @@ function Presentation(; kwargs...)
     end
     notify(alignmode)
 
-    figures = Dict( name => Figure(scene, layout, [], Attributes(), Ref{Any}(nothing))
-                    for (name, layout) in layouts )
-    for (fig, layout) in zip(values(figures), values(layouts))
+    figures = Dict{Symbol,Figure}()
+    for (name, layout) in layouts
+        # we need a separate scene for each figure element so that we can
+        # clear them separately
+        scene = Scene(parent.scene; camera=campixel!, clear = false,
+            events = separated_events, kwargs_dict...)
+        fig = Figure(scene, layout, [], Attributes(), Ref{Any}(nothing))
         layout.parent = fig
+        figures[name] = fig
     end
 
     p = Presentation(parent, figures, 1, Function[], Bool[], false)
@@ -189,8 +189,8 @@ function _set_slide_idx!(p::Presentation, i)
     if !p.locked && i != p.idx && (1 <= i <= length(p))
         p.locked = true
         p.idx = i
-        p.clear[p.idx] && empty!(first(values(p.figures)))
         for (name, fig) in p.figures
+            p.clear[p.idx] && empty!(fig)
             el = get(p.slide_elements[p.idx], name, nothing)
             !isnothing(el) && el(fig)
         end
@@ -233,7 +233,10 @@ current_index(p::Presentation) = p.idx
 
 
 function new_slide!(p::Presentation)
-    empty!(first(values(p.figures)))
+    # empty!(first(values(p.figures)))
+    for fig in values(p.figures)
+        empty!(fig)
+    end
     push!(p.slide_elements, Dict())
     push!(p.clear, p.idx == 1 || clear) # always clear first slide
     p.idx = length(p.slide_elements)
@@ -241,12 +244,12 @@ end
 
 
 """
-    add_slide!(f::Function, presentation[, clear = true])
+    add_to_slide!(f::Function, presentation[, clear = true])
 
 Adds a new slide add the end of the Presentation. If `clear = true` the previous
 figure will be reset before drawing.
 """
-function add_slide!(f::Function, p::Presentation; element::Symbol = :body, clear = true)
+function add_to_slide!(f::Function, p::Presentation; element::Symbol = :body, clear = true)
     # This is set up to render each slide immediately to get compilation times 
     # out of the way and perhaps catch errors a bit earlier
     try
