@@ -228,7 +228,7 @@ Base.length(p::Presentation) = length(p.slide_elements)
 Base.eachindex(p::Presentation) = 1:length(p.slide_elements)
 next_slide!(p::Presentation) = set_slide_idx!(p, p.idx + 1)
 previous_slide!(p::Presentation) = set_slide_idx!(p, p.idx - 1)
-reset!(p::Presentation) = _set_slide_idx!(p, 1)
+reset!(p::Presentation) = set_slide_idx!(p, 1)
 current_index(p::Presentation) = p.idx
 
 
