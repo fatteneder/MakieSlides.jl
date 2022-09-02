@@ -41,7 +41,7 @@ Makie.convert_for_attribute(t::Type{Makie.FreeTypeAbstraction.FTFont},
                             x::Makie.FreeTypeAbstraction.FTFont) = to_font(x)
 
 
-export Presentation, add_slide!, reset!, save
+export Presentation, new_slide!, add_slide!, reset!, save
 export formattedtext, formattedtext!
 export FormattedLabel, FormattedList, FormattedTable, MarkdownBox, FormattedCodeblock
 
@@ -61,7 +61,7 @@ mutable struct Presentation
     figures::Dict{Symbol,Figure}
 
     idx::Int
-    slides::Vector{Function}
+    slide_elements::Vector{Dict{Symbol,Function}}
     clear::Vector{Bool}
     locked::Bool
 end
@@ -186,13 +186,13 @@ function _set_slide_idx!(p::Presentation, i)
     # before or during the `empty!(fig)` procedure. This causes emptying to
     # fail and leaves orphaned plots behind. To avoid this we have a lock here
     # which disables slide changes until the previous change is finished.
-    if !p.locked && i != p.idx && (1 <= i <= length(p.slides))
+    if !p.locked && i != p.idx && (1 <= i <= length(p))
         p.locked = true
         p.idx = i
+        p.clear[p.idx] && empty!(first(values(p.figures)))
         for (name, fig) in p.figures
-            name === :body || continue
-            p.clear[p.idx] && empty!(fig)
-            name === :body && p.slides[p.idx](fig)
+            el = get(p.slide_elements[p.idx], name, nothing)
+            !isnothing(el) && el(fig)
         end
         p.locked = false
     end
@@ -203,7 +203,7 @@ end
 function set_slide_idx!(p::Presentation, i)
     # If we jump randomly we need to start from the last cleared slide and build
     # the current slide up from there.
-    N = length(p.slides)
+    N = length(p.slide_elements)
     i = i < 1 ? 1 : i
     i = i > N ? N : i
     if p.idx == i
@@ -224,12 +224,20 @@ end
 
 
 Base.display(p::Presentation) = display(p.parent)
-Base.length(p::Presentation) = length(p.slides)
-Base.eachindex(p::Presentation) = 1:length(p.slides)
+Base.length(p::Presentation) = length(p.slide_elements)
+Base.eachindex(p::Presentation) = 1:length(p.slide_elements)
 next_slide!(p::Presentation) = set_slide_idx!(p, p.idx + 1)
 previous_slide!(p::Presentation) = set_slide_idx!(p, p.idx - 1)
 reset!(p::Presentation) = _set_slide_idx!(p, 1)
 current_index(p::Presentation) = p.idx
+
+
+function new_slide!(p::Presentation)
+    empty!(first(values(p.figures)))
+    push!(p.slide_elements, Dict())
+    push!(p.clear, p.idx == 1 || clear) # always clear first slide
+    p.idx = length(p.slide_elements)
+end
 
 
 """
@@ -238,20 +246,15 @@ current_index(p::Presentation) = p.idx
 Adds a new slide add the end of the Presentation. If `clear = true` the previous
 figure will be reset before drawing.
 """
-function add_slide!(f::Function, p::Presentation, clear = true)
+function add_slide!(f::Function, p::Presentation; element::Symbol = :body, clear = true)
     # This is set up to render each slide immediately to get compilation times 
     # out of the way and perhaps catch errors a bit earlier
     try
-        for (name, fig) in p.figures
-            name === :body || continue
-            clear && empty!(fig)
-            # with_updates_suspended should stop layouting to trigger when the slide
-            # gets set up. This should speed up slide creation a bit.
-            name === :body && with_updates_suspended(() -> f(fig), fig.layout)
-        end
-        push!(p.slides, f)
-        push!(p.clear, p.idx == 1 || clear) # always clear first slide
-        p.idx = length(p.slides)
+        # with_updates_suspended should stop layouting to trigger when the slide
+        # gets set up. This should speed up slide creation a bit.
+        fig = p.figures[element]
+        with_updates_suspended(() -> f(fig), fig.layout)
+        p.slide_elements[p.idx][element] = f
     catch e
         @error "Failed to add slide - maybe the function signature does not match f(::Presentation)?"
         rethrow(e)
@@ -263,7 +266,7 @@ end
 function save(name, presentation::Presentation; aspect=(16,9))
     CairoMakie.activate!()
 
-    @assert length(presentation.slides) > 0
+    @assert length(presentation) > 0
 
     ratio = aspect[1] / aspect[2]
     width = 1400
