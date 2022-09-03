@@ -103,27 +103,37 @@ end
 """
     Presentation(; kwargs...)
 
-Creates a `pres::Presentation` with a background figure `parent`
-and a set of content figures `figures`.
+Creates a `pres::Presentation` with a background figure `parent::Figure`
+and a set of `element::SlideElement` for slide content.
+that allow to partition the slide for content placement.
 The former remains static during the presentation and acts as the background and 
-window. The latter act as thes slide and they get cleared and reassambled every
-time a new slide is requested. (This includes events.)
+window. The latter act as partioning of a slide into which content can be added.
+They can get cleared and reassambled every time a new slide is requested.
+(This includes events.)
 
 To add a slide use:
 
-    add_to_slide!(pres[, clear = true]) do fig
-        # Plot your slide to fig
+    new_slide!(pres)
+    add_to_slide!(pres[, element = :body, clear = true]) do fig
+        # Plot your content to fig
     end
 
-Note that `add_to_slide!` immediately switches to and draws the newly added slide.
-This is done to get rid of compilation times beforehand.
+Note that `new_slide!` inserts a new slides, whereas `add_to_slide!` adds content to the
+currently active (or previously created) slide. The added content is drawn immediately,
+this is done to get rid of compilation times beforehand.
+
+Available slide elements:
+- `:body`: the main place to put content, its the default element for `add_to_slide!`
+- `:header`: space above `:body` to put dates, section titles, etc.
+- `:footer`: space below `:body`, to put dates, section titles, etc.
+- `:sidebar_lhs`: space left to `:body`, could be used for a quick overview
+- `:sidebar_rhs`: space right to `:body`, could be used for a quick overview
 
 To switch to a different slide:
 - `next_slide!(pres)`: Advance to the next slide. Default keys: Keyboard.right, Keyboard.enter
 - `previous_slide!(pres)`: Go to the previous slide. Default keys: Keyboard.left
 - `reset!(pres)`: Go to the first slide. Defaults keys: Keyboard.home
 - `set_slide_idx!(pres, idx)`: Go a specified slide.
-
 """
 function Presentation(; kwargs...)
     # This is a modified version of the Figure() constructor.
