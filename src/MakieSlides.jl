@@ -56,21 +56,39 @@ include("formattedcodeblock.jl")
 include("markdownbox.jl")
 
 
+mutable struct SlideElement
+    parent::Figure
+    fig::Figure
+    span::NTuple{2,Union{Int64,UnitRange{Int64}}}
+    enabled::Bool
+end
+
+
+function SlideElement(parent::Figure, element_scene::Scene, span;
+        layout_kwargs...)
+    layout = Makie.GridLayout(; layout_kwargs...)
+    parent.layout[span...] = layout
+    fig = Figure(element_scene, layout, [], Attributes(), Ref{Any}(nothing))
+    layout.parent = fig
+    return SlideElement(parent, fig, span, true)
+end
+
+
 mutable struct Presentation
     parent::Figure
-    figures::Dict{Symbol,Figure}
+    elements::Dict{Symbol,SlideElement}
 
     idx::Int
-    slide_elements::Vector{Dict{Symbol,Function}}
+    slides::Vector{Dict{Symbol,Function}}
     clear::Vector{Bool}
     locked::Bool
 end
 
 
 function Base.getproperty(p::Presentation, s::Symbol)
-    fig_names = keys(getfield(p, :figures))
-    if s in fig_names
-        return getfield(p, :figures)[s]
+    el_names = keys(getfield(p, :elements))
+    if s in el_names
+        return getfield(p, :elements)[s]
     else
         return getfield(p, s)
     end
@@ -78,9 +96,8 @@ end
 
 
 function Base.propertynames(p::Presentation, private::Bool=false)
-    return [ fieldnames(Presentation)..., keys(p.figures)... ]
+    return [ fieldnames(Presentation)..., keys(p.elements)... ]
 end
-
 
 
 """
@@ -128,41 +145,34 @@ function Presentation(; kwargs...)
         end
     end
 
+    # we need a separate scene for each figure element so that we can
+    # clear them separately
+    make_scene() = Scene(parent.scene; camera=campixel!, clear = false,
+                         events = separated_events, kwargs_dict...)
+
+    elements = Dict{Symbol,SlideElement}()
+    elements[:header]       = SlideElement(parent, make_scene(), (1,1:3);
+                                           height=Fixed(50), tellwidth=false, valign=:top)
+    elements[:sidebar_lhs]  = SlideElement(parent, make_scene(), (2,1);
+                                           width=Fixed(50), tellheight=false, halign=:left)
+    elements[:body]         = SlideElement(parent, make_scene(), (2,2);
+                                           tellheight=false, tellwidth=false)
+    elements[:sidebar_rhs]  = SlideElement(parent, make_scene(), (2,3);
+                                           width=Fixed(50), tellheight=false, halign=:right)
+    elements[:footer]       = SlideElement(parent, make_scene(), (3,1:3);
+                                           height=Fixed(50), tellwidth=false, valign=:bottom)
+
     padding = padding isa Observable ? padding : Observable{Any}(padding)
     alignmode = lift(Outside ∘ Makie.to_rectsides, padding)
-
-    layouts = Dict{Symbol, Makie.GridLayout}()
-    layouts[:header]      = Makie.GridLayout(parent[1,1:3], height=Fixed(50),
-                                             tellwidth=false, valign=:top)
-    layouts[:sidebar_lhs] = Makie.GridLayout(parent[2,1], width=Fixed(50),
-                                             tellheight=false, halign=:left)
-    layouts[:body]        = Makie.GridLayout(parent[2,2], tellheight=false, tellwidth=false)
-    layouts[:sidebar_rhs] = Makie.GridLayout(parent[2,3], width=Fixed(50),
-                                             tellheight=false, halign=:right)
-    layouts[:footer]      = Makie.GridLayout(parent[3,1:3], height=Fixed(50),
-                                             tellwidth=false, valign=:bottom)
-
-    alignmode = lift(Outside ∘ Makie.to_rectsides, padding)
     on(alignmode) do al
-        for layout in values(layouts)
-            layout.alignmode[] = al
-            Makie.GridLayoutBase.update!(layout)
+        for (_, el) in elements
+            el.fig.layout.alignmode[] = al
+            Makie.GridLayoutBase.update!(el.fig.layout)
         end
     end
     notify(alignmode)
 
-    figures = Dict{Symbol,Figure}()
-    for (name, layout) in layouts
-        # we need a separate scene for each figure element so that we can
-        # clear them separately
-        scene = Scene(parent.scene; camera=campixel!, clear = false,
-            events = separated_events, kwargs_dict...)
-        fig = Figure(scene, layout, [], Attributes(), Ref{Any}(nothing))
-        layout.parent = fig
-        figures[name] = fig
-    end
-
-    p = Presentation(parent, figures, 1, Function[], Bool[], false)
+    p = Presentation(parent, elements, 1, Function[], Bool[], false)
 
     # Interactions
     on(events(parent.scene).keyboardbutton, priority = -1) do event
@@ -189,10 +199,10 @@ function _set_slide_idx!(p::Presentation, i)
     if !p.locked && i != p.idx && (1 <= i <= length(p))
         p.locked = true
         p.idx = i
-        for (name, fig) in p.figures
-            p.clear[p.idx] && empty!(fig)
-            el = get(p.slide_elements[p.idx], name, nothing)
-            !isnothing(el) && el(fig)
+        for (name, el) in p.elements
+            p.clear[p.idx] && empty!(el.fig)
+            f_el = get(p.slides[p.idx], name, nothing)
+            !isnothing(f_el) && f_el(el.fig)
         end
         p.locked = false
     end
@@ -203,7 +213,7 @@ end
 function set_slide_idx!(p::Presentation, i)
     # If we jump randomly we need to start from the last cleared slide and build
     # the current slide up from there.
-    N = length(p.slide_elements)
+    N = length(p.slides)
     i = i < 1 ? 1 : i
     i = i > N ? N : i
     if p.idx == i
@@ -224,8 +234,8 @@ end
 
 
 Base.display(p::Presentation) = display(p.parent)
-Base.length(p::Presentation) = length(p.slide_elements)
-Base.eachindex(p::Presentation) = 1:length(p.slide_elements)
+Base.length(p::Presentation) = length(p.slides)
+Base.eachindex(p::Presentation) = 1:length(p.slides)
 next_slide!(p::Presentation) = set_slide_idx!(p, p.idx + 1)
 previous_slide!(p::Presentation) = set_slide_idx!(p, p.idx - 1)
 reset!(p::Presentation) = set_slide_idx!(p, 1)
@@ -233,13 +243,12 @@ current_index(p::Presentation) = p.idx
 
 
 function new_slide!(p::Presentation)
-    # empty!(first(values(p.figures)))
-    for fig in values(p.figures)
-        empty!(fig)
+    for el in values(p.elements)
+        empty!(el.fig)
     end
-    push!(p.slide_elements, Dict())
+    push!(p.slides, Dict())
     push!(p.clear, p.idx == 1 || clear) # always clear first slide
-    p.idx = length(p.slide_elements)
+    p.idx = length(p.slides)
 end
 
 
@@ -255,9 +264,9 @@ function add_to_slide!(f::Function, p::Presentation; element::Symbol = :body, cl
     try
         # with_updates_suspended should stop layouting to trigger when the slide
         # gets set up. This should speed up slide creation a bit.
-        fig = p.figures[element]
+        fig = p.elements[element].fig
         with_updates_suspended(() -> f(fig), fig.layout)
-        p.slide_elements[p.idx][element] = f
+        p.slides[p.idx][element] = f
     catch e
         @error "Failed to add slide - maybe the function signature does not match f(::Presentation)?"
         rethrow(e)
