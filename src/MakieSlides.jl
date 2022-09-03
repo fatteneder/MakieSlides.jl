@@ -201,6 +201,32 @@ function Presentation(; kwargs...)
 end
 
 
+function deactivate_element!(p::Presentation, name::Symbol)
+    name ∉ keys(p.elements) && error("unknown slide element '$name'")
+    el = p.elements[name]
+    # remove scene
+    s_idx = findfirst(s -> s === el.fig.scene, p.parent.scene.children)
+    !isnothing(s_idx) && deleteat!(p.parent.scene.children, s_idx)
+    # remove layout
+    l_idx = findfirst(l -> l === el.fig.layout, p.parent.layout.content)
+    !isnothing(l_idx) && deleteat!(p.parent.layout.content, l_idx)
+    return
+end
+
+
+function activate_element!(p::Presentation, name::Symbol)
+    name ∉ keys(p.elements) && error("unknown slide element '$name'")
+    el = p.elements[name]
+    # insert scene, but only if not already present
+    s_idx = findfirst(s -> s === el.fig.scene, p.parent.scene.children)
+    isnothing(s_idx) && push!(p.parent.scene.children, el.fig.scene)
+    # insert layout, but only if not already present
+    l_idx = findfirst(l -> l === el.fig.layout, p.parent.layout.content)
+    isnothing(l_idx) && (p.parent.layout[el.span...] = el.fig.layout)
+    return
+end
+
+
 function _set_slide_idx!(p::Presentation, i)
     # Moving through slides quickly seems to sometimes trigger plot insertion 
     # before or during the `empty!(fig)` procedure. This causes emptying to
