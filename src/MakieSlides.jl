@@ -16,7 +16,7 @@ import Cairo
 
 
 # Makie internal dependencies of formattedtext.jl, formattedcode.jl
-import Makie: NativeFont, gl_bboxes, attribute_per_char, glyph_collection, RGBAf
+import Makie: NativeFont, gl_bboxes, attribute_per_char, glyph_collection, RGBAf, GridLayoutBase
 import MakieCore: automatic
 # Makie internal dependencies of formattedlabel.jl, formattedlist, markdownbox.jl
 using Makie.MakieLayout
@@ -176,7 +176,7 @@ function Presentation(; kwargs...)
     on(alignmode) do al
         for (_, el) in elements
             el.fig.layout.alignmode[] = al
-            Makie.GridLayoutBase.update!(el.fig.layout)
+            GridLayoutBase.update!(el.fig.layout)
         end
     end
     notify(alignmode)
