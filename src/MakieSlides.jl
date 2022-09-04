@@ -204,26 +204,59 @@ end
 function deactivate_element!(p::Presentation, name::Symbol)
     name ∉ keys(p.elements) && error("unknown slide element '$name'")
     el = p.elements[name]
+    !el.active && return p
     # remove scene
     s_idx = findfirst(s -> s === el.fig.scene, p.parent.scene.children)
     !isnothing(s_idx) && deleteat!(p.parent.scene.children, s_idx)
     # remove layout
-    l_idx = findfirst(l -> l === el.fig.layout, p.parent.layout.content)
-    !isnothing(l_idx) && deleteat!(p.parent.layout.content, l_idx)
-    return
+    l_idx = findfirst(l -> l.content === el.fig.layout, p.parent.layout.content)
+    !isnothing(l_idx) && GridLayoutBase.remove_from_gridlayout!(p.parent.layout.content[l_idx])
+    el.active = false
+    normalize_layout!(p)
+    return p
 end
 
 
 function activate_element!(p::Presentation, name::Symbol)
     name ∉ keys(p.elements) && error("unknown slide element '$name'")
     el = p.elements[name]
+    el.active && return p
     # insert scene, but only if not already present
     s_idx = findfirst(s -> s === el.fig.scene, p.parent.scene.children)
     isnothing(s_idx) && push!(p.parent.scene.children, el.fig.scene)
     # insert layout, but only if not already present
-    l_idx = findfirst(l -> l === el.fig.layout, p.parent.layout.content)
-    isnothing(l_idx) && (p.parent.layout[el.span...] = el.fig.layout)
-    return
+    l_idx = findfirst(l -> l.content === el.fig.layout, p.parent.layout.content)
+    el.active = true
+    normalize_layout!(p)
+    return p
+end
+
+
+function normalize_layout!(p::Presentation)
+    # normalize body in layout
+    if p.header.active
+        p.parent.layout[1,1:3] = p.header.fig.layout
+    end
+    if p.footer.active
+        p.parent.layout[3,1:3] = p.footer.fig.layout
+    end
+    if p.sidebar_lhs.active
+        rowmin = p.header.active ? 2 : 1
+        rowmax = p.footer.active ? 2 : 3
+        p.parent.layout[rowmin:rowmax,1] = p.sidebar_lhs.fig.layout
+    end
+    if p.sidebar_rhs.active
+        rowmin = p.header.active ? 2 : 1
+        rowmax = p.footer.active ? 2 : 3
+        p.parent.layout[rowmin:rowmax,3] = p.sidebar_rhs.fig.layout
+    end
+    if p.body.active
+        rowmin = p.header.active ? 2 : 1
+        rowmax = p.footer.active ? 2 : 3
+        colmin = p.sidebar_lhs.active ? 2 : 1
+        colmax = p.sidebar_rhs.active ? 2 : 3
+        p.parent.layout[rowmin:rowmax,colmin:colmax] = p.body.fig.layout
+    end
 end
 
 
