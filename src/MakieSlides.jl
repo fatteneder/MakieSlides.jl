@@ -60,6 +60,7 @@ mutable struct SlideElement
     parent::Figure
     fig::Figure
     span::NTuple{2,Union{Int64,UnitRange{Int64}}}
+    active::Bool
 end
 
 
@@ -69,7 +70,7 @@ function SlideElement(parent::Figure, element_scene::Scene, span;
     parent.layout[span...] = layout
     fig = Figure(element_scene, layout, [], Attributes(), Ref{Any}(nothing))
     layout.parent = fig
-    return SlideElement(parent, fig, span)
+    return SlideElement(parent, fig, span, true)
 end
 
 
