@@ -67,10 +67,9 @@ end
 function SlideElement(parent::Figure, element_scene::Scene, span;
         layout_kwargs...)
     layout = Makie.GridLayout(; layout_kwargs...)
-    parent.layout[span...] = layout
     fig = Figure(element_scene, layout, [], Attributes(), Ref{Any}(nothing))
     layout.parent = fig
-    return SlideElement(parent, fig, span, true)
+    return SlideElement(parent, fig, span, false)
 end
 
 
@@ -206,6 +205,7 @@ function deactivate_element!(p::Presentation, name::Symbol)
     el = p.elements[name]
     !el.active && return p
     # remove scene
+    empty!(el.fig.scene)
     s_idx = findfirst(s -> s === el.fig.scene, p.parent.scene.children)
     !isnothing(s_idx) && deleteat!(p.parent.scene.children, s_idx)
     # remove layout
@@ -231,8 +231,7 @@ function activate_element!(p::Presentation, name::Symbol)
     # insert scene, but only if not already present
     s_idx = findfirst(s -> s === el.fig.scene, p.parent.scene.children)
     isnothing(s_idx) && push!(p.parent.scene.children, el.fig.scene)
-    # insert layout, but only if not already present
-    l_idx = findfirst(l -> l.content === el.fig.layout, p.parent.layout.content)
+    # activate element
     el.active = true
     normalize_layout!(p)
     return p
@@ -287,9 +286,14 @@ function _set_slide_idx!(p::Presentation, i)
         p.locked = true
         p.idx = i
         for (name, el) in p.elements
-            p.clear[p.idx] && empty!(el.fig)
-            f_el = get(p.slides[p.idx], name, nothing)
-            !isnothing(f_el) && f_el(el.fig)
+            slide = get(p.slides[p.idx], name, nothing)
+            if isnothing(slide)
+                deactivate_element!(p, name)
+            else
+                activate_element!(p, name)
+                p.clear[p.idx] && empty!(el.fig)
+                slide(el.fig)
+            end
         end
         p.locked = false
     end
@@ -330,9 +334,7 @@ current_index(p::Presentation) = p.idx
 
 
 function new_slide!(p::Presentation)
-    for el in values(p.elements)
-        empty!(el.fig)
-    end
+    foreach(name -> deactivate_element!(p, name), keys(p.elements))
     push!(p.slides, Dict())
     push!(p.clear, p.idx == 1 || clear) # always clear first slide
     p.idx = length(p.slides)
@@ -351,6 +353,7 @@ function add_to_slide!(f::Function, p::Presentation; element::Symbol = :body, cl
     try
         # with_updates_suspended should stop layouting to trigger when the slide
         # gets set up. This should speed up slide creation a bit.
+        activate_element!(p, element)
         fig = p.elements[element].fig
         with_updates_suspended(() -> f(fig), fig.layout)
         p.slides[p.idx][element] = f
