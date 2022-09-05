@@ -210,7 +210,14 @@ function deactivate_element!(p::Presentation, name::Symbol)
     !isnothing(s_idx) && deleteat!(p.parent.scene.children, s_idx)
     # remove layout
     l_idx = findfirst(l -> l.content === el.fig.layout, p.parent.layout.content)
-    !isnothing(l_idx) && GridLayoutBase.remove_from_gridlayout!(p.parent.layout.content[l_idx])
+    if !isnothing(l_idx)
+        # we have to restore layout.parent after adding it to make it re-locateable for
+        # activate_element, cf. add_to_parent_layout! method
+        layout = el.fig.layout
+        prev_parent = layout.parent
+        GridLayoutBase.remove_from_gridlayout!(p.parent.layout.content[l_idx])
+        layout.parent = prev_parent
+    end
     el.active = false
     normalize_layout!(p)
     return p
@@ -235,28 +242,39 @@ end
 function normalize_layout!(p::Presentation)
     # normalize body in layout
     if p.header.active
-        p.parent.layout[1,1:3] = p.header.fig.layout
+        add_to_parent_layout!(p, p.header.fig.layout, 1, 1:3)
     end
     if p.footer.active
-        p.parent.layout[3,1:3] = p.footer.fig.layout
+        add_to_parent_layout!(p, p.footer.fig.layout, 3, 1:3)
     end
     if p.sidebar_lhs.active
         rowmin = p.header.active ? 2 : 1
         rowmax = p.footer.active ? 2 : 3
-        p.parent.layout[rowmin:rowmax,1] = p.sidebar_lhs.fig.layout
+        add_to_parent_layout!(p, p.sidebar_lhs.fig.layout, rowmin:rowmax, 1)
     end
     if p.sidebar_rhs.active
         rowmin = p.header.active ? 2 : 1
         rowmax = p.footer.active ? 2 : 3
-        p.parent.layout[rowmin:rowmax,3] = p.sidebar_rhs.fig.layout
+        add_to_parent_layout!(p, p.sidebar_rhs.fig.layout, rowmin:rowmax, 3)
     end
     if p.body.active
         rowmin = p.header.active ? 2 : 1
         rowmax = p.footer.active ? 2 : 3
         colmin = p.sidebar_lhs.active ? 2 : 1
         colmax = p.sidebar_rhs.active ? 2 : 3
-        p.parent.layout[rowmin:rowmax,colmin:colmax] = p.body.fig.layout
+        add_to_parent_layout!(p, p.body.fig.layout, rowmin:rowmax, colmin:colmax)
     end
+end
+
+
+function add_to_parent_layout!(p::Presentation, layout::GridLayoutBase.GridLayout, rows, cols)
+    # we have to restore layout.parent after adding it, otherwise
+    # we cannot re-locate the p.elements.fig objects in p.parent.layout.content
+    # utlimately, this causes new scenes to be created in p.parent.scene.childrens which
+    # are then disconnected from the p.elements.figs
+    prev_parent = layout.parent
+    p.parent.layout[rows, cols] = layout
+    layout.parent = prev_parent
 end
 
 
