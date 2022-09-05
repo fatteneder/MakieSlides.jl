@@ -350,17 +350,17 @@ figure will be reset before drawing.
 function add_to_slide!(f::Function, p::Presentation; element::Symbol = :body, clear = true)
     # This is set up to render each slide immediately to get compilation times 
     # out of the way and perhaps catch errors a bit earlier
+    activate_element!(p, element)
+    fig = p.elements[element].fig
     try
         # with_updates_suspended should stop layouting to trigger when the slide
         # gets set up. This should speed up slide creation a bit.
-        activate_element!(p, element)
-        fig = p.elements[element].fig
         with_updates_suspended(() -> f(fig), fig.layout)
-        p.slides[p.idx][element] = f
     catch e
         @error "Failed to add slide - maybe the function signature does not match f(::Presentation)?"
         rethrow(e)
     end
+    p.slides[p.idx][element] = f
     return
 end
 
