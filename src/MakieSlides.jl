@@ -41,7 +41,7 @@ Makie.convert_for_attribute(t::Type{Makie.FreeTypeAbstraction.FTFont},
                             x::Makie.FreeTypeAbstraction.FTFont) = to_font(x)
 
 
-export Presentation, new_slide!, add_to_slide!, reset!, save
+export Presentation, new_slide!, new_slidemaster!, add_to_slide!, reset!, save
 export formattedtext, formattedtext!
 export FormattedLabel, FormattedList, FormattedTable, MarkdownBox, FormattedCodeblock
 
@@ -78,7 +78,9 @@ mutable struct Presentation
     elements::Dict{Symbol,SlideElement}
 
     idx::Int
+    record_slidemaster::Bool
     slides::Vector{Dict{Symbol,Function}}
+    slidemasters::Vector{Dict{Symbol,Function}}
     clear::Vector{Bool}
     locked::Bool
 end
@@ -161,15 +163,15 @@ function Presentation(; kwargs...)
 
     elements = Dict{Symbol,SlideElement}()
     elements[:header]       = SlideElement(parent, make_scene(), (1,1:3);
-                                           height=Fixed(50), tellwidth=false, valign=:top)
+                                           tellwidth=false, valign=:center)
     elements[:sidebar_lhs]  = SlideElement(parent, make_scene(), (2,1);
-                                           width=Fixed(50), tellheight=false, halign=:left)
+                                           tellheight=false, halign=:left)
     elements[:body]         = SlideElement(parent, make_scene(), (2,2);
                                            tellheight=false, tellwidth=false)
     elements[:sidebar_rhs]  = SlideElement(parent, make_scene(), (2,3);
-                                           width=Fixed(50), tellheight=false, halign=:right)
+                                           tellheight=false, halign=:right)
     elements[:footer]       = SlideElement(parent, make_scene(), (3,1:3);
-                                           height=Fixed(50), tellwidth=false, valign=:bottom)
+                                           tellwidth=false, valign=:center)
 
     padding = padding isa Observable ? padding : Observable{Any}(padding)
     alignmode = lift(Outside ∘ Makie.to_rectsides, padding)
@@ -181,7 +183,21 @@ function Presentation(; kwargs...)
     end
     notify(alignmode)
 
-    p = Presentation(parent, elements, 1, Function[], Bool[], false)
+    p = Presentation(parent, elements, 1, false, [], [], Bool[], false)
+
+    # register all elements
+    foreach(name -> activate_element!(p, name), keys(elements))
+
+    # set widths/heights of slide elements
+    rowsize!(parent.layout, 1, Relative(0.05))
+    colsize!(parent.layout, 1, Relative(0.05))
+    colsize!(parent.layout, 3, Relative(0.05))
+    rowsize!(parent.layout, 3, Relative(0.05))
+    colgap!(parent.layout, 0)
+    rowgap!(parent.layout, 0)
+
+    # remove all elements
+    foreach(name -> deactivate_element!(p, name), keys(elements))
 
     # Interactions
     on(events(parent.scene).keyboardbutton, priority = -1) do event
@@ -277,6 +293,23 @@ function add_to_parent_layout!(p::Presentation, layout::GridLayoutBase.GridLayou
 end
 
 
+function draw_slide(p::Presentation)
+    # merge prefers slides elements over slidemasters elements so that we can
+    # overwrite master elements locally
+    content = merge(p.slidemasters[p.idx], p.slides[p.idx])
+    for (name, el) in p.elements
+        slide = get(content, name, nothing)
+        if isnothing(slide)
+            deactivate_element!(p, name)
+        else
+            activate_element!(p, name)
+            p.clear[p.idx] && empty!(el.fig)
+            slide(el.fig)
+        end
+    end
+end
+
+
 function _set_slide_idx!(p::Presentation, i)
     # Moving through slides quickly seems to sometimes trigger plot insertion 
     # before or during the `empty!(fig)` procedure. This causes emptying to
@@ -285,16 +318,7 @@ function _set_slide_idx!(p::Presentation, i)
     if !p.locked && i != p.idx && (1 <= i <= length(p))
         p.locked = true
         p.idx = i
-        for (name, el) in p.elements
-            slide = get(p.slides[p.idx], name, nothing)
-            if isnothing(slide)
-                deactivate_element!(p, name)
-            else
-                activate_element!(p, name)
-                p.clear[p.idx] && empty!(el.fig)
-                slide(el.fig)
-            end
-        end
+        draw_slide(p)
         p.locked = false
     end
     return
@@ -330,14 +354,35 @@ Base.eachindex(p::Presentation) = 1:length(p.slides)
 next_slide!(p::Presentation) = set_slide_idx!(p, p.idx + 1)
 previous_slide!(p::Presentation) = set_slide_idx!(p, p.idx - 1)
 reset!(p::Presentation) = set_slide_idx!(p, 1)
+clear!(p::Presentation) = foreach(name -> deactivate_element!(p, name), keys(p.elements))
 current_index(p::Presentation) = p.idx
 
 
 function new_slide!(p::Presentation)
-    foreach(name -> deactivate_element!(p, name), keys(p.elements))
+    clear!(p)
     push!(p.slides, Dict())
     push!(p.clear, p.idx == 1 || clear) # always clear first slide
     p.idx = length(p.slides)
+    # add and draw slide master
+    if length(p.slidemasters) == 0
+        # insert default
+        new_slide_master!(p)
+    else
+        # copy previous
+        push!(p.slidemasters, copy(last(p.slidemasters)))
+    end
+    # always swap back to normal recording
+    p.record_slidemaster = false
+    for (name, fn) in last(p.slidemasters)
+        add_to_slide!(fn, p, element=name)
+    end
+end
+
+
+function new_slidemaster!(p::Presentation)
+    clear!(p)
+    push!(p.slidemasters, Dict())
+    p.record_slidemaster = true
 end
 
 
@@ -360,7 +405,12 @@ function add_to_slide!(f::Function, p::Presentation; element::Symbol = :body, cl
         @error "Failed to add slide - maybe the function signature does not match f(::Presentation)?"
         rethrow(e)
     end
-    p.slides[p.idx][element] = f
+
+    if p.record_slidemaster
+        last(p.slidemasters)[element] = f
+    else
+        last(p.slides)[element] = f
+    end
     return
 end
 
@@ -483,6 +533,7 @@ function __init__()
     if !isdir(EMOJIS_PNG_PATH)
         unzip(joinpath(@__DIR__, "..", "assets", "openmoji-png-color.zip"), EMOJIS_PNG_PATH)
     end
+
 end
 
 
