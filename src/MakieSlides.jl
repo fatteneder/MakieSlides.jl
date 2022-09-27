@@ -326,10 +326,6 @@ function __init__()
     GLMakie.activate!() # Just to make sure
 
     # setup python
-    # add a custom Julia lexer for Pygments
-    if !conda_exists("pygments-julia")
-        PyCall.Conda.pip("install", "git+https://github.com/sisl/pygments-julia#egg=pygments_julia")
-    end
     copy!(PYGMENTS, PyCall.pyimport_conda("pygments", "pygments"))
     copy!(PYGMENTS_LEXERS, PyCall.pyimport_conda("pygments.lexers", "pygments"))
     copy!(PYGMENTS_STYLES, PyCall.pyimport_conda("pygments.styles", "pygments"))
@@ -337,6 +333,11 @@ function __init__()
     copy!(PYGMENTS_LEXERS_LANG_LIST, Symbol.(vcat(all_lexer_langs...)))
     all_styles = collect(PYGMENTS_STYLES.get_all_styles())
     copy!(PYGMENTS_STYLES_LIST, Symbol.(all_styles))
+
+    # add a custom Julia lexer for Pygments
+    if !conda_exists("pygments-julia")
+        PyCall.Conda.pip("install", "git+https://github.com/sisl/pygments-julia#egg=pygments_julia")
+    end
 
     # setup emoji list
     emojis_map = JSON.parsefile(joinpath(@__DIR__, "..", "assets", "emojis.json"))
