@@ -16,7 +16,7 @@ import Cairo
 
 
 # Makie internal dependencies of formattedtext.jl, formattedcode.jl
-import Makie: NativeFont, gl_bboxes, attribute_per_char, glyph_collection, RGBAf
+import Makie: NativeFont, gl_bboxes, attribute_per_char, glyph_collection, RGBAf, GridLayoutBase
 import MakieCore: automatic
 # Makie internal dependencies of formattedlabel.jl, formattedlist, markdownbox.jl
 using Makie.MakieLayout
@@ -41,7 +41,7 @@ Makie.convert_for_attribute(t::Type{Makie.FreeTypeAbstraction.FTFont},
                             x::Makie.FreeTypeAbstraction.FTFont) = to_font(x)
 
 
-export Presentation, add_slide!, reset!, save
+export Presentation, new_slide!, new_slidemaster!, add_to_slide!, reset!, save
 export formattedtext, formattedtext!
 export FormattedLabel, FormattedList, FormattedTable, MarkdownBox, FormattedCodeblock
 
@@ -56,40 +56,85 @@ include("formattedcodeblock.jl")
 include("markdownbox.jl")
 
 
-mutable struct Presentation
+mutable struct SlideElement
     parent::Figure
     fig::Figure
+    span::NTuple{2,Union{Int64,UnitRange{Int64}}}
+    active::Bool
+end
+
+
+function SlideElement(parent::Figure, element_scene::Scene, span;
+        layout_kwargs...)
+    layout = Makie.GridLayout(; layout_kwargs...)
+    fig = Figure(element_scene, layout, [], Attributes(), Ref{Any}(nothing))
+    layout.parent = fig
+    return SlideElement(parent, fig, span, false)
+end
+
+
+mutable struct Presentation
+    parent::Figure
+    elements::Dict{Symbol,SlideElement}
 
     idx::Int
-    slides::Vector{Function}
+    record_slidemaster::Bool
+    slides::Vector{Dict{Symbol,Function}}
+    slidemasters::Vector{Dict{Symbol,Function}}
     clear::Vector{Bool}
     locked::Bool
+end
+
+
+function Base.getproperty(p::Presentation, s::Symbol)
+    el_names = keys(getfield(p, :elements))
+    if s in el_names
+        return getfield(p, :elements)[s]
+    else
+        return getfield(p, s)
+    end
+end
+
+
+function Base.propertynames(p::Presentation, private::Bool=false)
+    return [ fieldnames(Presentation)..., keys(p.elements)... ]
 end
 
 
 """
     Presentation(; kwargs...)
 
-Creates a `pres::Presentation` with two figures `pres.parent` and `pres.fig`. 
+Creates a `pres::Presentation` with a background figure `parent::Figure`
+and a set of `element::SlideElement` for slide content.
+that allow to partition the slide for content placement.
 The former remains static during the presentation and acts as the background and 
-window.  The latter acts as the slide and gets cleared and reassambled every 
-time a new slide is requested. (This includes events.)
+window. The latter act as partioning of a slide into which content can be added.
+They can get cleared and reassambled every time a new slide is requested.
+(This includes events.)
 
 To add a slide use:
 
-    add_slide!(pres[, clear = true]) do fig
-        # Plot your slide to fig
+    new_slide!(pres)
+    add_to_slide!(pres[, element = :body, clear = true]) do fig
+        # Plot your content to fig
     end
 
-Note that `add_slide!` immediately switches to and draws the newly added slide. 
-This is done to get rid of compilation times beforehand.
+Note that `new_slide!` inserts a new slides, whereas `add_to_slide!` adds content to the
+currently active (or previously created) slide. The added content is drawn immediately,
+this is done to get rid of compilation times beforehand.
+
+Available slide elements:
+- `:body`: the main place to put content, its the default element for `add_to_slide!`
+- `:header`: space above `:body` to put dates, section titles, etc.
+- `:footer`: space below `:body`, to put dates, section titles, etc.
+- `:sidebar_lhs`: space left to `:body`, could be used for a quick overview
+- `:sidebar_rhs`: space right to `:body`, could be used for a quick overview
 
 To switch to a different slide:
 - `next_slide!(pres)`: Advance to the next slide. Default keys: Keyboard.right, Keyboard.enter
 - `previous_slide!(pres)`: Go to the previous slide. Default keys: Keyboard.left
 - `reset!(pres)`: Go to the first slide. Defaults keys: Keyboard.home
 - `set_slide_idx!(pres, idx)`: Go a specified slide.
-
 """
 function Presentation(; kwargs...)
     # This is a modified version of the Figure() constructor.
@@ -111,32 +156,48 @@ function Presentation(; kwargs...)
         end
     end
 
-    scene = Scene(
-        parent.scene; camera=campixel!, clear = false, 
-        events = separated_events, kwargs_dict...
-    )
+    # we need a separate scene for each figure element so that we can
+    # clear them separately
+    make_scene() = Scene(parent.scene; camera=campixel!, clear = false,
+                         events = separated_events, kwargs_dict...)
+
+    elements = Dict{Symbol,SlideElement}()
+    elements[:header]       = SlideElement(parent, make_scene(), (1,1:3);
+                                           tellwidth=false, valign=:center)
+    elements[:sidebar_lhs]  = SlideElement(parent, make_scene(), (2,1);
+                                           tellheight=false, halign=:left)
+    elements[:body]         = SlideElement(parent, make_scene(), (2,2);
+                                           tellheight=false, tellwidth=false)
+    elements[:sidebar_rhs]  = SlideElement(parent, make_scene(), (2,3);
+                                           tellheight=false, halign=:right)
+    elements[:footer]       = SlideElement(parent, make_scene(), (3,1:3);
+                                           tellwidth=false, valign=:center)
 
     padding = padding isa Observable ? padding : Observable{Any}(padding)
     alignmode = lift(Outside ∘ Makie.to_rectsides, padding)
-
-    layout = Makie.GridLayout(scene)
-
     on(alignmode) do al
-        layout.alignmode[] = al
-        Makie.GridLayoutBase.update!(layout)
+        for (_, el) in elements
+            el.fig.layout.alignmode[] = al
+            GridLayoutBase.update!(el.fig.layout)
+        end
     end
     notify(alignmode)
 
-    f = Figure(
-        scene,
-        layout,
-        [],
-        Attributes(),
-        Ref{Any}(nothing)
-    )
-    layout.parent = f
+    p = Presentation(parent, elements, 1, false, [], [], Bool[], false)
 
-    p = Presentation(parent, f, 1, Function[], Bool[], false)
+    # register all elements
+    foreach(name -> activate_element!(p, name), keys(elements))
+
+    # set widths/heights of slide elements
+    rowsize!(parent.layout, 1, Relative(0.05))
+    colsize!(parent.layout, 1, Relative(0.05))
+    colsize!(parent.layout, 3, Relative(0.05))
+    rowsize!(parent.layout, 3, Relative(0.05))
+    colgap!(parent.layout, 0)
+    rowgap!(parent.layout, 0)
+
+    # remove all elements
+    foreach(name -> deactivate_element!(p, name), keys(elements))
 
     # Interactions
     on(events(parent.scene).keyboardbutton, priority = -1) do event
@@ -155,16 +216,109 @@ function Presentation(; kwargs...)
 end
 
 
+function deactivate_element!(p::Presentation, name::Symbol)
+    name ∉ keys(p.elements) && error("unknown slide element '$name'")
+    el = p.elements[name]
+    !el.active && return p
+    # remove scene
+    empty!(el.fig.scene)
+    s_idx = findfirst(s -> s === el.fig.scene, p.parent.scene.children)
+    !isnothing(s_idx) && deleteat!(p.parent.scene.children, s_idx)
+    # remove layout
+    l_idx = findfirst(l -> l.content === el.fig.layout, p.parent.layout.content)
+    if !isnothing(l_idx)
+        # we have to restore layout.parent after adding it to make it re-locateable for
+        # activate_element, cf. add_to_parent_layout! method
+        layout = el.fig.layout
+        prev_parent = layout.parent
+        GridLayoutBase.remove_from_gridlayout!(p.parent.layout.content[l_idx])
+        layout.parent = prev_parent
+    end
+    el.active = false
+    normalize_layout!(p)
+    return p
+end
+
+
+function activate_element!(p::Presentation, name::Symbol)
+    name ∉ keys(p.elements) && error("unknown slide element '$name'")
+    el = p.elements[name]
+    el.active && return p
+    # insert scene, but only if not already present
+    s_idx = findfirst(s -> s === el.fig.scene, p.parent.scene.children)
+    isnothing(s_idx) && push!(p.parent.scene.children, el.fig.scene)
+    # activate element
+    el.active = true
+    normalize_layout!(p)
+    return p
+end
+
+
+function normalize_layout!(p::Presentation)
+    # normalize body in layout
+    if p.header.active
+        add_to_parent_layout!(p, p.header.fig.layout, 1, 1:3)
+    end
+    if p.footer.active
+        add_to_parent_layout!(p, p.footer.fig.layout, 3, 1:3)
+    end
+    if p.sidebar_lhs.active
+        rowmin = p.header.active ? 2 : 1
+        rowmax = p.footer.active ? 2 : 3
+        add_to_parent_layout!(p, p.sidebar_lhs.fig.layout, rowmin:rowmax, 1)
+    end
+    if p.sidebar_rhs.active
+        rowmin = p.header.active ? 2 : 1
+        rowmax = p.footer.active ? 2 : 3
+        add_to_parent_layout!(p, p.sidebar_rhs.fig.layout, rowmin:rowmax, 3)
+    end
+    if p.body.active
+        rowmin = p.header.active ? 2 : 1
+        rowmax = p.footer.active ? 2 : 3
+        colmin = p.sidebar_lhs.active ? 2 : 1
+        colmax = p.sidebar_rhs.active ? 2 : 3
+        add_to_parent_layout!(p, p.body.fig.layout, rowmin:rowmax, colmin:colmax)
+    end
+end
+
+
+function add_to_parent_layout!(p::Presentation, layout::GridLayoutBase.GridLayout, rows, cols)
+    # we have to restore layout.parent after adding it, otherwise
+    # we cannot re-locate the p.elements.fig objects in p.parent.layout.content
+    # utlimately, this causes new scenes to be created in p.parent.scene.childrens which
+    # are then disconnected from the p.elements.figs
+    prev_parent = layout.parent
+    p.parent.layout[rows, cols] = layout
+    layout.parent = prev_parent
+end
+
+
+function draw_slide(p::Presentation)
+    # merge prefers slides elements over slidemasters elements so that we can
+    # overwrite master elements locally
+    content = merge(p.slidemasters[p.idx], p.slides[p.idx])
+    for (name, el) in p.elements
+        slide = get(content, name, nothing)
+        if isnothing(slide)
+            deactivate_element!(p, name)
+        else
+            activate_element!(p, name)
+            p.clear[p.idx] && empty!(el.fig)
+            slide(el.fig)
+        end
+    end
+end
+
+
 function _set_slide_idx!(p::Presentation, i)
     # Moving through slides quickly seems to sometimes trigger plot insertion 
-    # before or during the `empty!(p.fig)` procedure. This causes emptying to
+    # before or during the `empty!(fig)` procedure. This causes emptying to
     # fail and leaves orphaned plots behind. To avoid this we have a lock here
     # which disables slide changes until the previous change is finished.
-    if !p.locked && i != p.idx && (1 <= i <= length(p.slides))
+    if !p.locked && i != p.idx && (1 <= i <= length(p))
         p.locked = true
         p.idx = i
-        p.clear[p.idx] && empty!(p.fig)
-        p.slides[p.idx](p.fig)
+        draw_slide(p)
         p.locked = false
     end
     return
@@ -172,7 +326,7 @@ end
 
 
 function set_slide_idx!(p::Presentation, i)
-    # If we jump randomly we need to start from the last cleared fig and build
+    # If we jump randomly we need to start from the last cleared slide and build
     # the current slide up from there.
     N = length(p.slides)
     i = i < 1 ? 1 : i
@@ -199,30 +353,63 @@ Base.length(p::Presentation) = length(p.slides)
 Base.eachindex(p::Presentation) = 1:length(p.slides)
 next_slide!(p::Presentation) = set_slide_idx!(p, p.idx + 1)
 previous_slide!(p::Presentation) = set_slide_idx!(p, p.idx - 1)
-reset!(p::Presentation) = _set_slide_idx!(p, 1)
+reset!(p::Presentation) = set_slide_idx!(p, 1)
+clear!(p::Presentation) = foreach(name -> deactivate_element!(p, name), keys(p.elements))
 current_index(p::Presentation) = p.idx
 
 
+function new_slide!(p::Presentation)
+    clear!(p)
+    push!(p.slides, Dict())
+    push!(p.clear, p.idx == 1 || clear) # always clear first slide
+    p.idx = length(p.slides)
+    # add and draw slide master
+    if length(p.slidemasters) == 0
+        # insert default
+        new_slide_master!(p)
+    else
+        # copy previous
+        push!(p.slidemasters, copy(last(p.slidemasters)))
+    end
+    # always swap back to normal recording
+    p.record_slidemaster = false
+    for (name, fn) in last(p.slidemasters)
+        add_to_slide!(fn, p, element=name)
+    end
+end
+
+
+function new_slidemaster!(p::Presentation)
+    clear!(p)
+    push!(p.slidemasters, Dict())
+    p.record_slidemaster = true
+end
+
+
 """
-    add_slide!(f::Function, presentation[, clear = true])
+    add_to_slide!(f::Function, presentation[, clear = true])
 
 Adds a new slide add the end of the Presentation. If `clear = true` the previous
 figure will be reset before drawing.
 """
-function add_slide!(f::Function, p::Presentation, clear = true)
+function add_to_slide!(f::Function, p::Presentation; element::Symbol = :body, clear = true)
     # This is set up to render each slide immediately to get compilation times 
     # out of the way and perhaps catch errors a bit earlier
+    activate_element!(p, element)
+    fig = p.elements[element].fig
     try
-        clear && empty!(p.fig)
         # with_updates_suspended should stop layouting to trigger when the slide
         # gets set up. This should speed up slide creation a bit.
-        with_updates_suspended(() -> f(p.fig), p.fig.layout)
-        push!(p.slides, f)
-        push!(p.clear, p.idx == 1 || clear) # always clear first slide
-        p.idx = length(p.slides)
+        with_updates_suspended(() -> f(fig), fig.layout)
     catch e
         @error "Failed to add slide - maybe the function signature does not match f(::Presentation)?"
         rethrow(e)
+    end
+
+    if p.record_slidemaster
+        last(p.slidemasters)[element] = f
+    else
+        last(p.slides)[element] = f
     end
     return
 end
@@ -231,7 +418,7 @@ end
 function save(name, presentation::Presentation; aspect=(16,9))
     CairoMakie.activate!()
 
-    @assert length(presentation.slides) > 0
+    @assert length(presentation) > 0
 
     ratio = aspect[1] / aspect[2]
     width = 1400
@@ -347,6 +534,7 @@ function __init__()
     if !isdir(EMOJIS_PNG_PATH)
         unzip(joinpath(@__DIR__, "..", "assets", "openmoji-png-color.zip"), EMOJIS_PNG_PATH)
     end
+
 end
 
 
